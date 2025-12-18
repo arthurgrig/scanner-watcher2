@@ -1,0 +1,28 @@
+{
+  "version": "1.0.0",
+  "watch_directory": "C:\\Scans",
+  "openai_api_key": "YOUR_API_KEY_HERE",
+  "log_level": "INFO",
+  "processing": {
+    "file_prefix": "SCAN-",
+    "pages_to_extract": 3,
+    "retry_attempts": 3,
+    "retry_delay_seconds": 5,
+    "temp_directory": null
+  },
+  "ai": {
+    "model": "gpt-4-vision-preview",
+    "max_tokens": 500,
+    "temperature": 0.1,
+    "timeout_seconds": 30
+  },
+  "logging": {
+    "max_file_size_mb": 10,
+    "backup_count": 5,
+    "log_to_event_log": true
+  },
+  "service": {
+    "health_check_interval_seconds": 60,
+    "graceful_shutdown_timeout_seconds": 30
+  }
+}
