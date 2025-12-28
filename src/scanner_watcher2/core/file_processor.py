@@ -272,7 +272,7 @@ class FileProcessor:
             )
 
             try:
-                # Build new filename with date, document type, and identifiers
+                # Build new filename with structured ordering
                 from datetime import datetime
                 
                 date_str = datetime.now().strftime("%Y%m%d")
@@ -283,18 +283,56 @@ class FileProcessor:
                     for c in document_type
                 )
                 
-                # Add identifiers if available
-                identifier_parts = []
-                for key, value in classification.identifiers.items():
-                    # Sanitize identifier values
-                    safe_value = "".join(
+                # Define predictable ordering for identifiers
+                # Format: YYYYMMDD_PlaintiffName_DocumentType_RemainingIdentifiers.pdf
+                ordered_keys = [
+                    "plaintiff_name",    # Plaintiff (lawyer's client) - HIGHEST PRIORITY
+                    "plaintiff",         # Alternative key for plaintiff
+                    "patient_name",      # Injured worker (same as plaintiff)
+                    "client_name",       # Employer/company name (defendant)
+                    "case_number",
+                    "date_of_injury",
+                    "report_date",
+                    "evaluator_name",
+                ]
+                
+                def sanitize_value(value: str) -> str:
+                    """Sanitize identifier value for filename."""
+                    return "".join(
                         c if c.isalnum() or c in ("-", "_") else "_"
                         for c in str(value)
                     )
-                    identifier_parts.append(safe_value)
                 
-                # Build filename: YYYYMMDD_DocumentType_Identifier1_Identifier2.pdf
-                filename_parts = [date_str, safe_doc_type] + identifier_parts
+                # Extract identifiers in predictable order
+                identifier_parts = []
+                processed_keys = set()
+                
+                # Add identifiers in defined order
+                for key in ordered_keys:
+                    if key in classification.identifiers:
+                        value = classification.identifiers[key]
+                        if value:  # Only add non-empty values
+                            identifier_parts.append(sanitize_value(value))
+                            processed_keys.add(key)
+                
+                # Add any remaining identifiers not in ordered list
+                for key, value in classification.identifiers.items():
+                    if key not in processed_keys and value:
+                        identifier_parts.append(sanitize_value(value))
+                
+                # Build filename: YYYYMMDD_PlaintiffName_DocumentType_OtherIdentifiers.pdf
+                # Plaintiff name is first identifier (if present), then document type, then rest
+                filename_parts = [date_str]
+                
+                if identifier_parts:
+                    # First identifier should be plaintiff_name (lawyer's client)
+                    filename_parts.append(identifier_parts[0])
+                    filename_parts.append(safe_doc_type)
+                    filename_parts.extend(identifier_parts[1:])
+                else:
+                    # No identifiers, just date and document type
+                    filename_parts.append(safe_doc_type)
+                
                 new_filename = "_".join(filename_parts) + ".pdf"
                 
                 new_file_path = self.file_manager.rename_file(file_path, new_filename)

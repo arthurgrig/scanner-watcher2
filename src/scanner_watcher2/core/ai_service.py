@@ -193,7 +193,16 @@ class AIService:
                 "Return a JSON object with:\n"
                 "- document_type (string): Must be one of the supported types listed above, using the exact name\n"
                 "- confidence (0.0-1.0): Your confidence in the classification\n"
-                "- identifiers (dict): Relevant information like names, dates, case numbers, etc."
+                "- identifiers (dict): Extract relevant information using these EXACT keys when available:\n"
+                "  * plaintiff_name: The plaintiff/injured worker name (HIGHEST PRIORITY - always extract)\n"
+                "  * patient_name: Alternative for plaintiff/injured worker (use if plaintiff_name not clear)\n"
+                "  * client_name: The employer/defendant company name\n"
+                "  * case_number: Any case, claim, or file number\n"
+                "  * date_of_injury: Date of injury if mentioned\n"
+                "  * report_date: Date of the report/document\n"
+                "  * evaluator_name: Name of doctor/evaluator if applicable\n"
+                "  * other relevant fields as needed\n"
+                "  Use these exact key names for consistency in file naming."
             )
 
             # Prepare the API request
