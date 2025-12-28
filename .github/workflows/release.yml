@@ -1,0 +1,105 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build and Release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: 'pyproject.toml'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Build PyInstaller executable
+        run: |
+          pyinstaller scanner_watcher2.spec
+          if (-not (Test-Path "dist\ScannerWatcher2.exe")) {
+            Write-Error "Executable not found at dist\ScannerWatcher2.exe"
+            exit 1
+          }
+          Write-Output "Executable built successfully"
+        shell: pwsh
+
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup -y
+          refreshenv
+        shell: pwsh
+
+      - name: Compile Inno Setup installer
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" scanner_watcher2.iss
+          if (-not (Test-Path "Output\ScannerWatcher2Setup.exe")) {
+            Write-Error "Installer not found at Output\ScannerWatcher2Setup.exe"
+            exit 1
+          }
+          Write-Output "Installer compiled successfully"
+        shell: pwsh
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          if ($env:GITHUB_REF -match 'refs/tags/(.*)') {
+            $version = $matches[1]
+          } elseif ($env:VERSION_INPUT) {
+            $version = $env:VERSION_INPUT
+          } else {
+            $version = "v0.0.0"
+          }
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+          echo "Version: $version"
+        shell: pwsh
+        env:
+          VERSION_INPUT: ${{ github.event.inputs.version }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_version.outputs.version }}
+          name: Release ${{ steps.get_version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: |
+            Output/ScannerWatcher2Setup.exe
+          body: |
+            ## Scanner-Watcher2 ${{ steps.get_version.outputs.version }}
+
+            ### Installation
+
+            Download `ScannerWatcher2Setup.exe` and run the installer.
+
+            ### What's Changed
+
+            See commit history for details.
+
+            ### Requirements
+
+            - Windows 10, Windows 11, or Windows Server 2019+
+            - No additional prerequisites required (Python runtime is bundled)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
