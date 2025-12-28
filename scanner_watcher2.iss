@@ -149,12 +149,27 @@ begin
   end;
 end;
 
+function EscapeBackslashes(const S: String): String;
+var
+  I: Integer;
+begin
+  Result := '';
+  for I := 1 to Length(S) do
+  begin
+    if S[I] = '\' then
+      Result := Result + '\\'
+    else
+      Result := Result + S[I];
+  end;
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   ConfigFile: String;
   ConfigContent: TStringList;
   I: Integer;
   Line: String;
+  WatchDir: String;
 begin
   if CurStep = ssPostInstall then
   begin
@@ -167,14 +182,16 @@ begin
       try
         ConfigContent.LoadFromFile(ConfigFile);
         
+        { Prepare watch directory with escaped backslashes }
+        WatchDir := EscapeBackslashes(WatchDirPage.Values[0]);
+        
         { Update watch directory }
         for I := 0 to ConfigContent.Count - 1 do
         begin
           Line := ConfigContent[I];
           if Pos('"watch_directory"', Line) > 0 then
           begin
-            ConfigContent[I] := '  "watch_directory": "' + 
-              StringChangeEx(WatchDirPage.Values[0], '\', '\\', True) + '",';
+            ConfigContent[I] := '  "watch_directory": "' + WatchDir + '",';
           end;
           
           { Update API key if provided }

@@ -39,6 +39,8 @@ class ServiceOrchestrator:
         self._processing_times: list[int] = []
         self._processing_errors: int = 0
         self._processing_total: int = 0
+        self._processing_files: set[Path] = set()  # Track files currently being processed
+        self._processing_lock = __import__('threading').Lock()
         
         # Initialize infrastructure components
         self.logger = Logger(
@@ -237,6 +239,13 @@ class ServiceOrchestrator:
         Args:
             file_path: Path to file to process
         """
+        # Check if file is already being processed
+        with self._processing_lock:
+            if file_path in self._processing_files:
+                self.logger.debug("File already being processed, skipping", file_path=str(file_path))
+                return
+            self._processing_files.add(file_path)
+        
         try:
             result = self.file_processor.process_file(file_path)
             
@@ -254,3 +263,7 @@ class ServiceOrchestrator:
             self._processing_total += 1
             self._processing_errors += 1
             self.logger.error("Error in file processing callback", error=str(e), file_path=str(file_path))
+        finally:
+            # Remove from processing set
+            with self._processing_lock:
+                self._processing_files.discard(file_path)

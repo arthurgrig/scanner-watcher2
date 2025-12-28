@@ -384,3 +384,30 @@
 
 - [x] 21. Final checkpoint - Complete system test
   - Ensure all tests pass, ask the user if questions arise.
+
+## Optional Performance Improvements
+
+- [ ] 22. Fix directory watcher race condition (Optional)
+  - **Problem**: Directory watcher stability checker can fire callback multiple times for the same file
+  - **Impact**: Multiple concurrent API calls for same document, wasted OpenAI credits, confusing error logs
+  - **Root Cause**: File can be re-added to `_pending_files` while stability checker is processing it
+  - **Solution**: Add callback deduplication lock in stability checker
+  - **Implementation**:
+    - Add `_callback_in_progress: set[Path]` to DirectoryWatcher
+    - Add `_callback_lock: threading.Lock()` to DirectoryWatcher
+    - In `_stability_check_loop`, check if file is already being processed before calling callback
+    - Remove from `_callback_in_progress` after callback completes
+  - **Testing**: Verify only one callback fires per file even with rapid file system events
+  - _Requirements: 1.1, 1.2, 12.2_
+
+- [ ] 23. Improve orchestrator file path normalization (Optional)
+  - **Problem**: Orchestrator's `_processing_files` lock may not work if Path objects aren't normalized
+  - **Impact**: Lock doesn't prevent concurrent processing if paths are represented differently
+  - **Root Cause**: `Path("file.pdf")` vs `Path("./file.pdf")` are different objects
+  - **Solution**: Normalize all file paths using `.resolve()` before checking lock
+  - **Implementation**:
+    - In `_process_file_callback`, normalize file_path: `file_path = file_path.resolve()`
+    - Update all Path comparisons to use resolved paths
+    - Ensure consistent path representation throughout orchestrator
+  - **Testing**: Verify lock works with relative paths, absolute paths, and paths with `.` or `..`
+  - _Requirements: 6.4, 12.2_

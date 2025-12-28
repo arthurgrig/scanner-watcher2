@@ -77,7 +77,6 @@ a = Analysis(
         # Exclude unnecessary standard library modules
         'tkinter',
         'test',
-        'distutils',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
