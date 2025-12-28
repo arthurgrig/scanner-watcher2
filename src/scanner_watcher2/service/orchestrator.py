@@ -3,6 +3,7 @@ Service orchestrator for coordinating all application components.
 """
 
 import os
+import platform
 import psutil
 import time
 from datetime import datetime
