@@ -20,7 +20,14 @@ REM Check if Inno Setup is installed
 set INNO_SETUP="C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 if not exist %INNO_SETUP% (
     echo ERROR: Inno Setup not found at %INNO_SETUP%
+    echo.
     echo Please install Inno Setup 6 from https://jrsoftware.org/isdl.php
+    echo.
+    echo Alternative locations to check:
+    echo   - C:\Program Files\Inno Setup 6\ISCC.exe
+    echo   - Check your Start Menu for "Inno Setup Compiler"
+    echo.
+    echo If installed elsewhere, update the INNO_SETUP variable in this script.
     echo.
     pause
     exit /b 1

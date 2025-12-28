@@ -32,8 +32,10 @@ This will:
 Run PyInstaller directly:
 
 ```bash
-pyinstaller scanner_watcher2.spec
+python -m PyInstaller scanner_watcher2.spec
 ```
+
+Note: Use `python -m PyInstaller` instead of just `pyinstaller` to ensure the module is found, especially with Microsoft Store Python installations.
 
 ## Build Output
 

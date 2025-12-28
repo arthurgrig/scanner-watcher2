@@ -13,7 +13,7 @@ pip install pyinstaller
 build.bat
 
 # Or manually
-pyinstaller scanner_watcher2.spec
+python -m PyInstaller scanner_watcher2.spec
 ```
 
 ## Output

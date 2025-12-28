@@ -54,11 +54,16 @@ build_installer.bat
 
 ```batch
 REM Build PyInstaller executable
-pyinstaller scanner_watcher2.spec
+python -m PyInstaller scanner_watcher2.spec
 
 REM Build Inno Setup installer
 "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" scanner_watcher2.iss
 ```
+
+Note: If Inno Setup is installed in a different location, check:
+- `C:\Program Files\Inno Setup 6\ISCC.exe`
+- Your Start Menu for "Inno Setup Compiler"
+- Update the path in `build_installer.bat` if needed
 
 ### Output
 
@@ -237,7 +242,14 @@ The uninstaller prompts the user:
 **Problem**: Inno Setup not found
 ```
 Solution: Install Inno Setup 6 from https://jrsoftware.org/isdl.php
-          Or update the path in build_installer.bat
+          
+          Check these common installation locations:
+          - C:\Program Files (x86)\Inno Setup 6\ISCC.exe
+          - C:\Program Files\Inno Setup 6\ISCC.exe
+          
+          Or search your Start Menu for "Inno Setup Compiler"
+          
+          Update the INNO_SETUP variable in build_installer.bat with the correct path
 ```
 
 **Problem**: scanner_watcher2.exe not found

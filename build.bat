@@ -23,7 +23,7 @@ echo.
 
 REM Build executable
 echo Building executable with PyInstaller...
-pyinstaller scanner_watcher2.spec
+python -m PyInstaller scanner_watcher2.spec
 if errorlevel 1 (
     echo.
     echo ERROR: Build failed
