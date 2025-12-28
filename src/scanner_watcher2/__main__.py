@@ -112,8 +112,12 @@ def get_default_config_path() -> Path:
     Returns:
         Default configuration path
     """
-    appdata = os.getenv("APPDATA", ".")
-    return Path(appdata) / "ScannerWatcher2" / "config.json"
+    if platform.system() == "Windows":
+        appdata = os.getenv("APPDATA", ".")
+        return Path(appdata) / "ScannerWatcher2" / "config.json"
+    else:
+        # Non-Windows fallback (development/testing)
+        return Path.home() / ".ScannerWatcher2" / "config.json"
 
 
 def run_console_mode(config_path: Path, log_level_override: str | None = None) -> None:
@@ -174,7 +178,11 @@ def run_console_mode(config_path: Path, log_level_override: str | None = None) -
     print()
 
     # Initialize logger
-    log_dir = Path(os.getenv("APPDATA", ".")) / "ScannerWatcher2" / "logs"
+    if platform.system() == "Windows":
+        log_dir = Path(os.getenv("APPDATA", ".")) / "ScannerWatcher2" / "logs"
+    else:
+        # Non-Windows fallback (development/testing)
+        log_dir = Path.home() / ".ScannerWatcher2" / "logs"
     logger = Logger(
         log_dir=log_dir,
         component="Main",

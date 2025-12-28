@@ -132,7 +132,11 @@ class ScannerWatcher2Service(_ServiceBase):
         try:
             # Load configuration
             config_manager = ConfigManager()
-            config_path = Path(os.getenv("APPDATA", ".")) / "ScannerWatcher2" / "config.json"
+            if platform.system() == "Windows":
+                config_path = Path(os.getenv("APPDATA", ".")) / "ScannerWatcher2" / "config.json"
+            else:
+                # Non-Windows fallback (development/testing)
+                config_path = Path.home() / ".ScannerWatcher2" / "config.json"
 
             if not config_path.exists():
                 # Create default configuration
@@ -141,7 +145,11 @@ class ScannerWatcher2Service(_ServiceBase):
             self.config = config_manager.load_config(config_path)
 
             # Initialize logger
-            log_dir = Path(os.getenv("APPDATA", ".")) / "ScannerWatcher2" / "logs"
+            if platform.system() == "Windows":
+                log_dir = Path(os.getenv("APPDATA", ".")) / "ScannerWatcher2" / "logs"
+            else:
+                # Non-Windows fallback (development/testing)
+                log_dir = Path.home() / ".ScannerWatcher2" / "logs"
             self.logger = Logger(
                 log_dir=log_dir,
                 component="WindowsService",

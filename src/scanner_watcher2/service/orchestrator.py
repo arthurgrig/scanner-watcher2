@@ -43,8 +43,13 @@ class ServiceOrchestrator:
         self._processing_lock = __import__('threading').Lock()
         
         # Initialize infrastructure components
+        if platform.system() == "Windows":
+            log_dir = Path(os.getenv("APPDATA", ".")) / "ScannerWatcher2" / "logs"
+        else:
+            # Non-Windows fallback (development/testing)
+            log_dir = Path.home() / ".ScannerWatcher2" / "logs"
         self.logger = Logger(
-            log_dir=Path(os.getenv("APPDATA", ".")) / "ScannerWatcher2" / "logs",
+            log_dir=log_dir,
             component="ServiceOrchestrator",
             log_level=config.log_level,
             max_file_size_mb=config.logging.max_file_size_mb,

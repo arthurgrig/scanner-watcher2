@@ -31,7 +31,7 @@ class ConfigWizard:
             config_dir = Path(appdata) / "ScannerWatcher2"
         else:
             # Fallback for non-Windows (development/testing)
-            config_dir = Path.home() / ".scanner_watcher2"
+            config_dir = Path.home() / ".ScannerWatcher2"
 
         config_dir.mkdir(parents=True, exist_ok=True)
         return config_dir / "config.json"
