@@ -5,7 +5,7 @@ Windows-native legal document processing system that monitors directories for sc
 ## Features
 
 - **Automatic Document Detection**: Monitors directories for new scanned documents with configurable file prefix (default: "SCAN-")
-- **AI-Powered Classification**: Uses OpenAI GPT-4 Vision to classify 15+ legal document types including medical reports, court orders, and legal correspondence
+- **AI-Powered Classification**: Uses OpenAI GPT-4 Vision with flexible three-tier classification system (standard categories, specific types, and OTHER fallback) to handle any legal document
 - **Multi-Page Analysis**: Extracts and analyzes up to 3 pages from each document for improved classification accuracy
 - **Intelligent File Organization**: Renames files with meaningful names including date, document type, and identifiers
 - **Windows Service Integration**: Runs as a native Windows service with automatic startup and lifecycle management
@@ -227,30 +227,53 @@ Configuration is stored in `%APPDATA%\ScannerWatcher2\config.json`. The configur
 
 ### Supported Document Types
 
-Scanner-Watcher2 can identify and classify the following legal document types:
+Scanner-Watcher2 uses a flexible three-tier classification system to identify and organize legal documents:
 
-**Medical Reports**:
+#### Tier 1: Standard Categories (Enum-Based)
+
+The system first attempts to classify documents into high-level standard categories:
+
+- **Medical Report**: QME reports, AME reports, PTP reports, IME reports, medical evaluations
+- **Injury Report**: Initial injury reports, incident reports
+- **Claim Form**: DWC-1, claim applications
+- **Deposition**: Deposition transcripts
+- **Expert Witness Report**: Expert opinions, vocational evaluations
+- **Settlement Agreement**: Compromise & Release, Stipulations
+- **Court Order**: WCAB orders, findings, awards
+- **Insurance Correspondence**: Carrier letters, UR decisions, RFAs
+- **Wage Statement**: Earnings records, pay stubs
+- **Vocational Report**: Vocational rehabilitation reports
+- **IME Report**: Independent Medical Examinations
+- **Surveillance Report**: Investigation reports
+- **Subpoena**: Subpoenas, subpoena duces tecum
+- **Motion**: Motions, petitions, DORs
+- **Brief**: Legal briefs, memoranda
+
+#### Tier 2: Specific Document Types
+
+If a document doesn't clearly fit a standard category, the AI provides a specific document type name:
+
 - Panel List
 - QME Appointment Notification Form
-- Agreed Medical Evaluator Report
-- Qualified Medical Evaluator Report
-- PTP Initial Report
-- PTP P&S Report (Permanent and Stationary)
-
-**Utilization Review**:
-- RFA (Request for Authorization)
-- UR Approval
-- UR Denial
-- Modified UR
-
-**Court Documents**:
-- Finding and Award
-- Finding & Order
 - Declaration of Readiness to Proceed
 - Objection to Declaration of Readiness to Proceed
+- Finding and Award
+- Finding & Order
+- And other specific legal document types
 
-**Legal Correspondence**:
-- Advocacy/Cover Letter
+#### Tier 3: OTHER Fallback
+
+For documents that cannot be classified, the system returns:
+- `OTHER_[Brief Description]` (e.g., "OTHER_Unidentified Medical Form")
+
+This allows the system to handle any document while clearly marking unclassifiable ones.
+
+#### Classification Benefits
+
+- **Flexibility**: Handles documents outside predefined lists
+- **Consistency**: Groups similar documents into standard categories
+- **Clarity**: Unknown documents clearly marked with OTHER prefix
+- **Better Organization**: Files grouped by high-level category for easier sorting
 
 The AI analyzes up to 3 pages from each document to accurately identify the document type, even when documents have similar formatting or content. You can adjust the number of pages analyzed using the `pages_to_extract` configuration option.
 

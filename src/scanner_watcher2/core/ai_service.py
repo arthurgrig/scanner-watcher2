@@ -14,28 +14,28 @@ from PIL import Image
 
 from scanner_watcher2.infrastructure.error_handler import ErrorHandler
 from scanner_watcher2.infrastructure.logger import Logger
-from scanner_watcher2.models import Classification
+from scanner_watcher2.models import Classification, DocumentType
 
 
-# Supported legal document types for classification
-# Requirements 16.1-16.17
-SUPPORTED_DOCUMENT_TYPES = [
-    "Panel List",
-    "QME Appointment Notification Form",
-    "Agreed Medical Evaluator Report",
-    "Qualified Medical Evaluator Report",
-    "PTP Initial Report",
-    "PTP P&S Report",
-    "RFA (Request for Authorization)",
-    "UR Approval",
-    "UR Denial",
-    "Modified UR",
-    "Finding and Award",
-    "Finding & Order",
-    "Advocacy/Cover Letter",
-    "Declaration of Readiness to Proceed",
-    "Objection to Declaration of Readiness to Proceed",
-]
+# Legacy document types list - kept for reference
+# Now using DocumentType enum with prioritized classification
+# SUPPORTED_DOCUMENT_TYPES = [
+#     "Panel List",
+#     "QME Appointment Notification Form",
+#     "Agreed Medical Evaluator Report",
+#     "Qualified Medical Evaluator Report",
+#     "PTP Initial Report",
+#     "PTP P&S Report",
+#     "RFA (Request for Authorization)",
+#     "UR Approval",
+#     "UR Denial",
+#     "Modified UR",
+#     "Finding and Award",
+#     "Finding & Order",
+#     "Advocacy/Cover Letter",
+#     "Declaration of Readiness to Proceed",
+#     "Objection to Declaration of Readiness to Proceed",
+# ]
 
 
 class AIService:
@@ -43,7 +43,8 @@ class AIService:
     Service for classifying documents using OpenAI API.
     
     Provides:
-    - Document classification using GPT-4 Vision
+    - Document classification using GPT-4 Vision with prioritized enum-based approach
+    - Three-tier classification: standard categories, specific types, OTHER fallback
     - Response parsing and validation
     - API error handling and rate limit management
     - Timeout handling
@@ -104,14 +105,14 @@ class AIService:
 
     def get_supported_document_types(self) -> list[str]:
         """
-        Return list of supported document types for classification.
+        Return list of supported document type categories.
 
-        Implements Requirements 16.1-16.17.
+        Returns standard enum categories for classification.
 
         Returns:
-            List of standardized document type names
+            List of standardized document type category names
         """
-        return SUPPORTED_DOCUMENT_TYPES.copy()
+        return [dt.value for dt in DocumentType if dt != DocumentType.OTHER]
 
     def _encode_image(self, image: Image.Image) -> str:
         """
@@ -183,17 +184,46 @@ class AIService:
                     },
                 })
 
-            # Build comprehensive system prompt with all supported document types
-            # Requirement 16.16
-            document_types_list = "\n".join(f"- {doc_type}" for doc_type in SUPPORTED_DOCUMENT_TYPES)
+            # Build comprehensive system prompt with prioritized classification logic
+            # Three-tier classification approach:
+            # Priority 1: Match to standard enum categories
+            # Priority 2: Use specific document type if no enum match
+            # Priority 3: Return "OTHER_[description]" if unclassifiable
+            
+            # Build list of standard categories with descriptions
+            category_descriptions = [
+                "- MEDICAL_REPORT: Any medical evaluation, QME, AME, PTP, IME reports",
+                "- INJURY_REPORT: Initial injury reports, incident reports",
+                "- CLAIM_FORM: DWC-1, claim applications",
+                "- DEPOSITION: Deposition transcripts",
+                "- EXPERT_WITNESS_REPORT: Expert opinions, vocational evaluations",
+                "- SETTLEMENT_AGREEMENT: Compromise & Release, Stipulations",
+                "- COURT_ORDER: WCAB orders, findings, awards",
+                "- INSURANCE_CORRESPONDENCE: Carrier letters, UR decisions, RFAs",
+                "- WAGE_STATEMENT: Earnings records, pay stubs",
+                "- VOCATIONAL_REPORT: Vocational rehabilitation reports",
+                "- IME_REPORT: Independent Medical Examinations",
+                "- SURVEILLANCE_REPORT: Investigation reports",
+                "- SUBPOENA: Subpoenas, subpoena duces tecum",
+                "- MOTION: Motions, petitions, DORs",
+                "- BRIEF: Legal briefs, memoranda",
+            ]
+            
+            categories_text = "\n".join(category_descriptions)
+            
             system_prompt = (
-                "You are a legal document classifier. Analyze the document image(s) "
-                "and identify the document type from the following supported types:\n\n"
-                f"{document_types_list}\n\n"
-                "Return a JSON object with:\n"
-                "- document_type (string): Must be one of the supported types listed above, using the exact name\n"
-                "- confidence (0.0-1.0): Your confidence in the classification\n"
-                "- identifiers (dict): Extract relevant information using these EXACT keys when available:\n"
+                "You are a legal document classifier for California Workers' Compensation cases. "
+                "Classify documents using this prioritized approach:\n\n"
+                "**PRIORITY 1 - Standard Categories (use if document clearly fits):**\n"
+                f"{categories_text}\n\n"
+                "**PRIORITY 2 - Specific Type (if no standard category fits):**\n"
+                "Provide the specific document type name (e.g., 'Panel List', 'QME Appointment Notification Form')\n\n"
+                "**PRIORITY 3 - Unknown (if cannot classify):**\n"
+                "Return 'OTHER_[Brief Description]' (e.g., 'OTHER_Unidentified Medical Form')\n\n"
+                "Return JSON with:\n"
+                "- document_type: The classification (standard category value like 'Medical Report', specific type, or OTHER_description)\n"
+                "- confidence: 0.0-1.0\n"
+                "- identifiers: Extract relevant information using these EXACT keys when available:\n"
                 "  * plaintiff_name: The plaintiff/injured worker name (HIGHEST PRIORITY - always extract)\n"
                 "  * patient_name: Alternative for plaintiff/injured worker (use if plaintiff_name not clear)\n"
                 "  * client_name: The employer/defendant company name\n"

@@ -411,3 +411,44 @@
     - Ensure consistent path representation throughout orchestrator
   - **Testing**: Verify lock works with relative paths, absolute paths, and paths with `.` or `..`
   - _Requirements: 6.4, 12.2_
+
+
+## Optional Feature Enhancements
+
+- [x] 24. Implement prioritized document type enum classification (Optional)
+  - **Goal**: Replace fixed document type list with flexible enum-based classification system
+  - **Current State**: System uses 15 specific document types; AI must match exact names
+  - **Desired State**: Three-tier classification with enum categories, flexible types, and OTHER fallback
+  - **Implementation**:
+    - Create DocumentType enum in `models.py` with 16 categories:
+      * MEDICAL_REPORT, INJURY_REPORT, CLAIM_FORM, DEPOSITION, EXPERT_WITNESS_REPORT
+      * SETTLEMENT_AGREEMENT, COURT_ORDER, INSURANCE_CORRESPONDENCE, WAGE_STATEMENT
+      * VOCATIONAL_REPORT, IME_REPORT, SURVEILLANCE_REPORT, SUBPOENA, MOTION, BRIEF, OTHER
+    - Update AI service prompt in `ai_service.py` with prioritized classification logic:
+      * Priority 1: Match to standard enum categories (e.g., QME Report → MEDICAL_REPORT)
+      * Priority 2: Use specific document type if no enum match (e.g., "Panel List")
+      * Priority 3: Return "OTHER_[description]" if unclassifiable
+    - Update Classification dataclass with helper methods:
+      * `is_standard_category()` - Check if matches enum
+      * `is_other()` - Check if OTHER fallback
+    - Update file naming logic to handle all three classification types
+    - Add comprehensive tests for enum matching, flexible classification, and OTHER fallback
+  - **Benefits**:
+    * Flexibility to handle documents outside predefined list
+    * Consistency through standard category grouping
+    * Clear marking of unknown documents
+    * Better file organization by high-level category
+  - **Example Mappings**:
+    * QME Report → MEDICAL_REPORT
+    * Finding and Award → COURT_ORDER
+    * Panel List → "Panel List" (specific type)
+    * Unknown Form → "OTHER_Medical Form"
+  - **Files to Modify**:
+    * `src/scanner_watcher2/models.py` - Add DocumentType enum
+    * `src/scanner_watcher2/core/ai_service.py` - Update prompt and logic
+    * `src/scanner_watcher2/core/file_processor.py` - Ensure filename handling
+    * `tests/unit/test_ai_service.py` - Add enum tests
+    * `tests/property/test_ai_service_properties.py` - Update property tests
+    * `README.md` - Update documentation
+  - **Note**: This is a breaking change - consider migration strategy for existing files
+  - _See TASK_DOCUMENT_TYPE_ENUM.md for detailed specification_

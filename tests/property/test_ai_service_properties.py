@@ -18,7 +18,7 @@ from PIL import Image
 from scanner_watcher2.core.ai_service import AIService
 from scanner_watcher2.infrastructure.error_handler import ErrorHandler
 from scanner_watcher2.infrastructure.logger import Logger
-from scanner_watcher2.models import Classification
+from scanner_watcher2.models import Classification, DocumentType
 
 
 # Helper strategies
@@ -461,23 +461,7 @@ def test_api_latency_logging(processing_time_ms: int) -> None:
 
 # Feature: scanner-watcher2, Property 14: Document type support
 @given(
-    document_type=st.sampled_from([
-        "Panel List",
-        "QME Appointment Notification Form",
-        "Agreed Medical Evaluator Report",
-        "Qualified Medical Evaluator Report",
-        "PTP Initial Report",
-        "PTP P&S Report",
-        "RFA (Request for Authorization)",
-        "UR Approval",
-        "UR Denial",
-        "Modified UR",
-        "Finding and Award",
-        "Finding & Order",
-        "Advocacy/Cover Letter",
-        "Declaration of Readiness to Proceed",
-        "Objection to Declaration of Readiness to Proceed",
-    ]),
+    document_type=st.sampled_from([dt.value for dt in DocumentType if dt != DocumentType.OTHER]),
     confidence=st.floats(min_value=0.0, max_value=1.0),
 )
 @settings(max_examples=100, deadline=None)
@@ -486,6 +470,8 @@ def test_document_type_support(document_type: str, confidence: float) -> None:
     For any document matching a supported type, the system should return the standardized document type name.
     
     Validates: Requirements 16.1-16.15, 16.17
+    
+    Note: Updated to use enum-based classification with standard categories.
     """
     # Create mock dependencies
     error_handler = ErrorHandler(max_attempts=1, initial_delay=0.001, jitter_ms=0)
@@ -533,19 +519,23 @@ def test_document_type_support(document_type: str, confidence: float) -> None:
         assert result.document_type == document_type
         assert abs(result.confidence - confidence) < 0.01
         
+        # Verify it's recognized as a standard category
+        assert result.is_standard_category is True
+        
         # Verify API was called with correct parameters
         assert mock_create.call_count == 1
         call_args = mock_create.call_args
         messages = call_args.kwargs["messages"]
         
-        # Verify system message contains all supported document types
+        # Verify system message contains prioritized classification approach
         system_message = messages[0]
         assert system_message["role"] == "system"
         system_content = system_message["content"]
         
-        # All supported document types should be in the prompt (Requirement 16.16)
-        for supported_type in supported_types:
-            assert supported_type in system_content, f"{supported_type} not found in system prompt"
+        # Verify prioritized classification is in the prompt
+        assert "PRIORITY 1" in system_content
+        assert "PRIORITY 2" in system_content
+        assert "PRIORITY 3" in system_content
 
 
 # Feature: scanner-watcher2, Property 15: Comprehensive prompt inclusion
@@ -556,6 +546,8 @@ def test_comprehensive_prompt_inclusion(dummy) -> None:
     For any classification request, the system should include all supported document types in the AI prompt.
     
     Validates: Requirements 16.16
+    
+    Note: Updated to verify prioritized classification approach with enum categories.
     """
     # Create mock dependencies
     error_handler = ErrorHandler(max_attempts=1, initial_delay=0.001, jitter_ms=0)
@@ -570,33 +562,35 @@ def test_comprehensive_prompt_inclusion(dummy) -> None:
         logger=logger,
     )
     
-    # Get all supported document types
+    # Get all supported document types (enum categories)
     supported_types = ai_service.get_supported_document_types()
     
-    # Verify we have all 15 document types
-    assert len(supported_types) == 15, f"Expected 15 document types, found {len(supported_types)}"
+    # Verify we have 15 standard categories (all enum values except OTHER)
+    expected_count = len(DocumentType) - 1  # Exclude OTHER
+    assert len(supported_types) == expected_count, \
+        f"Expected {expected_count} document type categories, found {len(supported_types)}"
     
-    # Verify all expected types are present
-    expected_types = [
-        "Panel List",
-        "QME Appointment Notification Form",
-        "Agreed Medical Evaluator Report",
-        "Qualified Medical Evaluator Report",
-        "PTP Initial Report",
-        "PTP P&S Report",
-        "RFA (Request for Authorization)",
-        "UR Approval",
-        "UR Denial",
-        "Modified UR",
-        "Finding and Award",
-        "Finding & Order",
-        "Advocacy/Cover Letter",
-        "Declaration of Readiness to Proceed",
-        "Objection to Declaration of Readiness to Proceed",
+    # Verify all expected enum categories are present
+    expected_categories = [
+        "Medical Report",
+        "Injury Report",
+        "Claim Form",
+        "Deposition",
+        "Expert Witness Report",
+        "Settlement Agreement",
+        "Court Order",
+        "Insurance Correspondence",
+        "Wage Statement",
+        "Vocational Report",
+        "IME Report",
+        "Surveillance Report",
+        "Subpoena",
+        "Motion",
+        "Brief",
     ]
     
-    for expected_type in expected_types:
-        assert expected_type in supported_types, f"{expected_type} not in supported types"
+    for expected_category in expected_categories:
+        assert expected_category in supported_types, f"{expected_category} not in supported types"
     
     # Create a simple test image
     image = Image.new("RGB", (100, 100), color="white")
@@ -607,7 +601,7 @@ def test_comprehensive_prompt_inclusion(dummy) -> None:
             {
                 "message": {
                     "content": json.dumps({
-                        "document_type": "Panel List",
+                        "document_type": "Medical Report",
                         "confidence": 0.95,
                         "identifiers": {},
                     }),
@@ -632,9 +626,35 @@ def test_comprehensive_prompt_inclusion(dummy) -> None:
         assert system_message["role"] == "system"
         system_content = system_message["content"]
         
-        # Verify ALL supported document types are included in the prompt
-        for doc_type in supported_types:
-            assert doc_type in system_content, f"Document type '{doc_type}' not found in system prompt"
+        # Verify prioritized classification approach is in the prompt
+        assert "PRIORITY 1" in system_content
+        assert "PRIORITY 2" in system_content
+        assert "PRIORITY 3" in system_content
+        assert "Standard Categories" in system_content
         
-        # Verify the prompt instructs to use exact names
-        assert "exact name" in system_content.lower() or "supported types" in system_content.lower()
+        # Verify all enum category names are included in the prompt
+        # The prompt uses uppercase enum names (e.g., MEDICAL_REPORT)
+        enum_names = [
+            "MEDICAL_REPORT",
+            "INJURY_REPORT",
+            "CLAIM_FORM",
+            "DEPOSITION",
+            "EXPERT_WITNESS_REPORT",
+            "SETTLEMENT_AGREEMENT",
+            "COURT_ORDER",
+            "INSURANCE_CORRESPONDENCE",
+            "WAGE_STATEMENT",
+            "VOCATIONAL_REPORT",
+            "IME_REPORT",
+            "SURVEILLANCE_REPORT",
+            "SUBPOENA",
+            "MOTION",
+            "BRIEF",
+        ]
+        
+        for enum_name in enum_names:
+            assert enum_name in system_content, \
+                f"Enum category '{enum_name}' not found in system prompt"
+        
+        # Verify the prompt explains the three-tier classification
+        assert "OTHER_" in system_content, "OTHER fallback not explained in prompt"
