@@ -43,36 +43,43 @@ def test_structured_json_logging(
             log_to_event_log=False,
         )
 
-        # Log a message with context
-        context = {context_key: context_value}
-        logger.info(message, **context)
+        try:
+            # Log a message with context
+            context = {context_key: context_value}
+            logger.info(message, **context)
 
-        # Read the log file
-        log_file = log_dir / "scanner_watcher2.log"
-        assert log_file.exists(), "Log file should be created"
+            # Read the log file
+            log_file = log_dir / "scanner_watcher2.log"
+            assert log_file.exists(), "Log file should be created"
 
-        log_content = log_file.read_text(encoding="utf-8")
-        assert log_content.strip(), "Log file should not be empty"
+            log_content = log_file.read_text(encoding="utf-8")
+            assert log_content.strip(), "Log file should not be empty"
 
-        # Parse the last log entry as JSON
-        log_lines = [line for line in log_content.strip().split("\n") if line.strip()]
-        assert len(log_lines) > 0, "Should have at least one log entry"
+            # Parse the last log entry as JSON
+            log_lines = [line for line in log_content.strip().split("\n") if line.strip()]
+            assert len(log_lines) > 0, "Should have at least one log entry"
 
-        last_log_entry = log_lines[-1]
-        log_entry = json.loads(last_log_entry)
+            last_log_entry = log_lines[-1]
+            log_entry = json.loads(last_log_entry)
 
-        # Verify structured JSON format
-        assert isinstance(log_entry, dict), "Log entry should be a JSON object"
-        assert "event" in log_entry, "Log entry should contain 'event' field"
-        assert "timestamp" in log_entry, "Log entry should contain 'timestamp' field"
-        assert "level" in log_entry, "Log entry should contain 'level' field"
-        assert "component" in log_entry, "Log entry should contain 'component' field"
+            # Verify structured JSON format
+            assert isinstance(log_entry, dict), "Log entry should be a JSON object"
+            assert "event" in log_entry, "Log entry should contain 'event' field"
+            assert "timestamp" in log_entry, "Log entry should contain 'timestamp' field"
+            assert "level" in log_entry, "Log entry should contain 'level' field"
+            assert "component" in log_entry, "Log entry should contain 'component' field"
 
-        # Verify the logged message and context
-        assert log_entry["event"] == message, "Log entry should contain the message"
-        assert log_entry["component"] == component, "Log entry should contain the component"
-        assert context_key in log_entry, f"Log entry should contain context key '{context_key}'"
-        assert log_entry[context_key] == context_value, "Log entry should contain the context value"
+            # Verify the logged message and context
+            assert log_entry["event"] == message, "Log entry should contain the message"
+            assert log_entry["component"] == component, "Log entry should contain the component"
+            assert context_key in log_entry, f"Log entry should contain context key '{context_key}'"
+            assert log_entry[context_key] == context_value, "Log entry should contain the context value"
+        finally:
+            # Close logger handlers to release file locks on Windows
+            if hasattr(logger, '_logger') and hasattr(logger._logger, 'handlers'):
+                for handler in logger._logger.handlers[:]:
+                    handler.close()
+                    logger._logger.removeHandler(handler)
 
 
 # Feature: scanner-watcher2, Property 23: Log rotation
@@ -104,30 +111,37 @@ def test_log_rotation(num_messages: int, message_size: int) -> None:
             log_to_event_log=False,
         )
 
-        # Generate enough log messages to trigger rotation
-        large_message = "x" * message_size
-        for i in range(num_messages):
-            logger.info(f"Message {i}: {large_message}", iteration=i)
+        try:
+            # Generate enough log messages to trigger rotation
+            large_message = "x" * message_size
+            for i in range(num_messages):
+                logger.info(f"Message {i}: {large_message}", iteration=i)
 
-        # Check that log files exist
-        log_file = log_dir / "scanner_watcher2.log"
-        assert log_file.exists(), "Main log file should exist"
+            # Check that log files exist
+            log_file = log_dir / "scanner_watcher2.log"
+            assert log_file.exists(), "Main log file should exist"
 
-        # Count backup files
-        backup_files = list(log_dir.glob("scanner_watcher2.log.*"))
-        
-        # Verify rotation occurred if we wrote enough data
-        total_bytes_written = num_messages * (message_size + 100)  # Approximate
-        max_bytes = max_file_size_kb * 1024
-        
-        if total_bytes_written > max_bytes:
-            # Rotation should have occurred
-            assert len(backup_files) > 0, "Backup files should be created when rotation occurs"
+            # Count backup files
+            backup_files = list(log_dir.glob("scanner_watcher2.log.*"))
             
-            # Should not exceed backup count
-            assert len(backup_files) <= backup_count, (
-                f"Should not have more than {backup_count} backup files, found {len(backup_files)}"
-            )
+            # Verify rotation occurred if we wrote enough data
+            total_bytes_written = num_messages * (message_size + 100)  # Approximate
+            max_bytes = max_file_size_kb * 1024
+            
+            if total_bytes_written > max_bytes:
+                # Rotation should have occurred
+                assert len(backup_files) > 0, "Backup files should be created when rotation occurs"
+                
+                # Should not exceed backup count
+                assert len(backup_files) <= backup_count, (
+                    f"Should not have more than {backup_count} backup files, found {len(backup_files)}"
+                )
+        finally:
+            # Close logger handlers to release file locks on Windows
+            if hasattr(logger, '_logger') and hasattr(logger._logger, 'handlers'):
+                for handler in logger._logger.handlers[:]:
+                    handler.close()
+                    logger._logger.removeHandler(handler)
 
 
 # Feature: scanner-watcher2, Property 24: Success logging completeness
@@ -156,31 +170,38 @@ def test_success_logging_completeness(
             log_to_event_log=False,
         )
 
-        # Log a successful file processing event
-        logger.info(
-            "File processed successfully",
-            file_path=file_path,
-            document_type=document_type,
-            processing_time_ms=processing_time_ms,
-            file_size_bytes=file_size_bytes,
-        )
+        try:
+            # Log a successful file processing event
+            logger.info(
+                "File processed successfully",
+                file_path=file_path,
+                document_type=document_type,
+                processing_time_ms=processing_time_ms,
+                file_size_bytes=file_size_bytes,
+            )
 
-        # Read and parse the log file
-        log_file = log_dir / "scanner_watcher2.log"
-        log_content = log_file.read_text(encoding="utf-8")
-        log_lines = [line for line in log_content.strip().split("\n") if line.strip()]
-        
-        last_log_entry = log_lines[-1]
-        log_entry = json.loads(last_log_entry)
+            # Read and parse the log file
+            log_file = log_dir / "scanner_watcher2.log"
+            log_content = log_file.read_text(encoding="utf-8")
+            log_lines = [line for line in log_content.strip().split("\n") if line.strip()]
+            
+            last_log_entry = log_lines[-1]
+            log_entry = json.loads(last_log_entry)
 
-        # Verify all required fields are present
-        assert "processing_time_ms" in log_entry, "Log should include processing_time_ms"
-        assert "file_size_bytes" in log_entry, "Log should include file_size_bytes"
-        assert "document_type" in log_entry, "Log should include document_type"
-        assert "file_path" in log_entry, "Log should include file_path"
+            # Verify all required fields are present
+            assert "processing_time_ms" in log_entry, "Log should include processing_time_ms"
+            assert "file_size_bytes" in log_entry, "Log should include file_size_bytes"
+            assert "document_type" in log_entry, "Log should include document_type"
+            assert "file_path" in log_entry, "Log should include file_path"
 
-        # Verify the values match
-        assert log_entry["processing_time_ms"] == processing_time_ms
-        assert log_entry["file_size_bytes"] == file_size_bytes
-        assert log_entry["document_type"] == document_type
-        assert log_entry["file_path"] == file_path
+            # Verify the values match
+            assert log_entry["processing_time_ms"] == processing_time_ms
+            assert log_entry["file_size_bytes"] == file_size_bytes
+            assert log_entry["document_type"] == document_type
+            assert log_entry["file_path"] == file_path
+        finally:
+            # Close logger handlers to release file locks on Windows
+            if hasattr(logger, '_logger') and hasattr(logger._logger, 'handlers'):
+                for handler in logger._logger.handlers[:]:
+                    handler.close()
+                    logger._logger.removeHandler(handler)

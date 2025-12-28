@@ -4,6 +4,7 @@ Property-based tests for directory watcher.
 
 from __future__ import annotations
 
+import platform
 import threading
 import time
 from pathlib import Path
@@ -995,11 +996,17 @@ def test_configurable_prefix_with_special_characters(watch_directory: Path) -> N
 
 
 # Feature: scanner-watcher2, Property 5: Configurable prefix detection
+@pytest.mark.skipif(
+    platform.system() == "Windows",
+    reason="Windows filesystem is case-insensitive"
+)
 def test_configurable_prefix_case_sensitivity(watch_directory: Path) -> None:
     """
     For any prefix, the System should perform case-sensitive matching.
     
     This verifies that "SCAN-" and "scan-" are treated as different prefixes.
+    
+    Note: Skipped on Windows due to case-insensitive filesystem.
     
     Validates: Requirements 1.6
     """
