@@ -93,7 +93,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='scanner_watcher2',
+    name='ScannerWatcher2',  # Capital S to match expected filename
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
