@@ -79,7 +79,7 @@ def test_structured_json_logging(
         
         # Close logger handlers BEFORE temp directory cleanup
         if hasattr(logger, '_logger') and hasattr(logger._logger, 'handlers'):
-            for handler in logger._logger.handlers[:]:
+            for handler in logger._python_logger.handlers[:]:
                 handler.close()
                 logger._logger.removeHandler(handler)
     finally:
@@ -145,7 +145,7 @@ def test_log_rotation(num_messages: int, message_size: int) -> None:
         
         # Close logger handlers BEFORE temp directory cleanup
         if hasattr(logger, '_logger') and hasattr(logger._logger, 'handlers'):
-            for handler in logger._logger.handlers[:]:
+            for handler in logger._python_logger.handlers[:]:
                 handler.close()
                 logger._logger.removeHandler(handler)
     finally:
@@ -213,7 +213,7 @@ def test_success_logging_completeness(
         
         # Close logger handlers BEFORE temp directory cleanup
         if hasattr(logger, '_logger') and hasattr(logger._logger, 'handlers'):
-            for handler in logger._logger.handlers[:]:
+            for handler in logger._python_logger.handlers[:]:
                 handler.close()
                 logger._logger.removeHandler(handler)
     finally:

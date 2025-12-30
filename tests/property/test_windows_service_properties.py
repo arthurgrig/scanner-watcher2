@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
+from hypothesis import HealthCheck
 
 from scanner_watcher2.config import (
     AIConfig,
@@ -63,7 +64,7 @@ def mock_config(temp_config_dir, tmp_path):
 
 
 # Feature: scanner-watcher2, Property 15: Service start logging
-@settings(max_examples=100, deadline=None)
+@settings(max_examples=100, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(service_name=st.text(min_size=1, max_size=50))
 @pytest.mark.property
 def test_service_start_logging(
@@ -122,7 +123,7 @@ def test_service_start_logging(
 
 
 # Feature: scanner-watcher2, Property 16: Critical error logging
-@settings(max_examples=100, deadline=None)
+@settings(max_examples=100, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(error_message=st.text(min_size=1, max_size=200))
 @pytest.mark.property
 def test_critical_error_logging(
