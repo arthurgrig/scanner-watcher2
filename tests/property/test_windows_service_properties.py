@@ -96,8 +96,8 @@ def test_service_start_logging(
                         mock_orchestrator_instance = Mock()
                         mock_orchestrator.return_value = mock_orchestrator_instance
 
-                        # Create service
-                        service = ScannerWatcher2Service()
+                        # Create service with empty args list (required by pywin32)
+                        service = ScannerWatcher2Service(args=[])
 
                         # Mock the stop event to prevent blocking
                         if hasattr(service, "stop_event"):
@@ -150,8 +150,8 @@ def test_critical_error_logging(
                     mock_config_manager_instance.load_config.side_effect = Exception(error_message)
                     mock_config_manager.return_value = mock_config_manager_instance
 
-                    # Create service
-                    service = ScannerWatcher2Service()
+                    # Create service with empty args list (required by pywin32)
+                    service = ScannerWatcher2Service(args=[])
 
                     # Call SvcDoRun which should encounter error and log to event log
                     try:
