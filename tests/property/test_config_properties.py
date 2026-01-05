@@ -45,13 +45,13 @@ def test_valid_config_always_validates(
     """
     config = Config(
         version=version,
-        watch_directory=watch_directory,
+        watch_directories=[watch_directory],
         openai_api_key=api_key,
         log_level=log_level,
     )
     
     assert config.version == version
-    assert config.watch_directory == watch_directory
+    assert config.watch_directories == [watch_directory]
     assert config.openai_api_key == api_key
     assert config.log_level == log_level.upper()
 
@@ -75,7 +75,7 @@ def test_invalid_log_level_rejected(
     with pytest.raises(ValidationError) as exc_info:
         Config(
             version=version,
-            watch_directory=watch_directory,
+            watch_directories=[watch_directory],
             openai_api_key=api_key,
             log_level=invalid_log_level,
         )
@@ -100,7 +100,7 @@ def test_empty_api_key_rejected(
     with pytest.raises(ValidationError) as exc_info:
         Config(
             version=version,
-            watch_directory=watch_directory,
+            watch_directories=[watch_directory],
             openai_api_key="",
             log_level=log_level,
         )
@@ -128,12 +128,12 @@ def test_relative_watch_directory_rejected(
     with pytest.raises(ValidationError) as exc_info:
         Config(
             version=version,
-            watch_directory=Path(watch_directory),
+            watch_directories=[Path(watch_directory)],
             openai_api_key=api_key,
             log_level=log_level,
         )
     
-    assert "watch_directory" in str(exc_info.value)
+    assert "watch_directories" in str(exc_info.value)
 
 
 # Feature: scanner-watcher2, Property 26: Configuration validation
@@ -243,7 +243,7 @@ def test_config_save_encrypts_api_key(
         # Create and save config
         config = Config(
             version=version,
-            watch_directory=watch_directory,
+            watch_directories=[watch_directory],
             openai_api_key=api_key,
             log_level=log_level,
         )
@@ -299,7 +299,7 @@ def test_configuration_hot_reload(
         # Create and save initial config
         config1 = Config(
             version=version1,
-            watch_directory=watch_directory,
+            watch_directories=[watch_directory],
             openai_api_key=api_key1,
             log_level=log_level1,
         )
@@ -315,7 +315,7 @@ def test_configuration_hot_reload(
         # Update config file with new values
         config2 = Config(
             version=version2,
-            watch_directory=watch_directory,
+            watch_directories=[watch_directory],
             openai_api_key=api_key2,
             log_level=log_level2,
         )

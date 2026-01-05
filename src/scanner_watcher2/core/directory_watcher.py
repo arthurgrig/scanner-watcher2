@@ -17,18 +17,18 @@ class DirectoryWatcher:
     """Monitor filesystem for new scan files."""
 
     def __init__(
-        self, watch_path: Path, file_prefix: str, callback: Callable[[Path], None]
+        self, watch_path: Path, file_prefixes: list[str], callback: Callable[[Path], None]
     ) -> None:
         """
         Initialize watcher with path and callback.
 
         Args:
             watch_path: Directory to monitor
-            file_prefix: File prefix to detect (e.g., "SCAN-")
+            file_prefixes: List of file prefixes to detect (e.g., ["SCAN-", "DOC-"])
             callback: Function to call when file is detected
         """
         self.watch_path = watch_path
-        self.file_prefix = file_prefix
+        self.file_prefixes = file_prefixes
         self.callback = callback
         self._observer: Observer | None = None
         self._event_handler: _ScanFileEventHandler | None = None
@@ -46,7 +46,7 @@ class DirectoryWatcher:
 
         # Create event handler
         self._event_handler = _ScanFileEventHandler(
-            file_prefix=self.file_prefix,
+            file_prefixes=self.file_prefixes,
             on_file_detected=self._on_file_detected,
         )
 
@@ -119,6 +119,20 @@ class DirectoryWatcher:
 
         except (OSError, PermissionError):
             return False
+
+    def get_matched_prefix(self, file_path: Path) -> str | None:
+        """
+        Get the prefix that matched for a given file.
+
+        Args:
+            file_path: Path to file
+
+        Returns:
+            Matched prefix or None if file not found
+        """
+        if self._event_handler is None:
+            return None
+        return self._event_handler.get_matched_prefix(file_path)
 
     def _on_file_detected(self, file_path: Path) -> None:
         """
@@ -210,19 +224,32 @@ class _ScanFileEventHandler(FileSystemEventHandler):
     """Event handler for scan file detection."""
 
     def __init__(
-        self, file_prefix: str, on_file_detected: Callable[[Path], None]
+        self, file_prefixes: list[str], on_file_detected: Callable[[Path], None]
     ) -> None:
         """
         Initialize event handler.
 
         Args:
-            file_prefix: File prefix to detect
+            file_prefixes: List of file prefixes to detect
             on_file_detected: Callback for detected files
         """
         super().__init__()
-        self.file_prefix = file_prefix
+        self.file_prefixes = file_prefixes
         self.on_file_detected = on_file_detected
         self._seen_files: set[Path] = set()
+        self._matched_prefixes: dict[Path, str] = {}  # Store matched prefix per file
+
+    def get_matched_prefix(self, file_path: Path) -> str | None:
+        """
+        Get the prefix that matched for a given file.
+
+        Args:
+            file_path: Path to file
+
+        Returns:
+            Matched prefix or None if file not found
+        """
+        return self._matched_prefixes.get(file_path)
 
     def on_created(self, event: FileSystemEvent) -> None:
         """
@@ -236,8 +263,14 @@ class _ScanFileEventHandler(FileSystemEventHandler):
 
         file_path = Path(event.src_path)
 
-        # Check if file matches prefix
-        if not file_path.name.startswith(self.file_prefix):
+        # Check if file matches any prefix
+        matched_prefix = None
+        for prefix in self.file_prefixes:
+            if file_path.name.startswith(prefix):
+                matched_prefix = prefix
+                break
+
+        if matched_prefix is None:
             return
 
         # Debounce: only process each file once
@@ -245,6 +278,7 @@ class _ScanFileEventHandler(FileSystemEventHandler):
             return
 
         self._seen_files.add(file_path)
+        self._matched_prefixes[file_path] = matched_prefix
 
         # Trigger detection callback
         self.on_file_detected(file_path)
@@ -261,11 +295,18 @@ class _ScanFileEventHandler(FileSystemEventHandler):
 
         file_path = Path(event.src_path)
 
-        # Check if file matches prefix
-        if not file_path.name.startswith(self.file_prefix):
+        # Check if file matches any prefix
+        matched_prefix = None
+        for prefix in self.file_prefixes:
+            if file_path.name.startswith(prefix):
+                matched_prefix = prefix
+                break
+
+        if matched_prefix is None:
             return
 
         # If we haven't seen this file yet, treat it as a new file
         if file_path not in self._seen_files:
             self._seen_files.add(file_path)
+            self._matched_prefixes[file_path] = matched_prefix
             self.on_file_detected(file_path)

@@ -82,23 +82,51 @@ class ServiceOrchestrator:
             error_handler=self.error_handler,
         )
         
-        # Directory watcher will be initialized in start()
-        self.directory_watcher: DirectoryWatcher | None = None
+        # Directory watchers will be initialized in start()
+        self.directory_watchers: list[DirectoryWatcher] = []
 
     def start(self) -> None:
         """Start all components."""
         self.logger.info("Starting ServiceOrchestrator")
         
-        # Initialize directory watcher with callback
-        self.directory_watcher = DirectoryWatcher(
-            watch_path=self.config.watch_directory,
-            file_prefix=self.config.processing.file_prefix,
-            callback=self._process_file_callback,
+        # Log all configured watch directories and prefixes
+        self.logger.info(
+            "Configuration loaded",
+            watch_directories=[str(d) for d in self.config.watch_directories],
+            file_prefixes=self.config.processing.file_prefixes,
         )
         
-        # Start directory watcher
-        self.directory_watcher.start()
-        self.logger.info("Directory watcher started", watch_path=str(self.config.watch_directory))
+        # Check directory existence and create watchers only for existing directories
+        valid_directories = []
+        for watch_dir in self.config.watch_directories:
+            if watch_dir.exists() and watch_dir.is_dir():
+                valid_directories.append(watch_dir)
+            else:
+                self.logger.warning(
+                    "Watch directory does not exist, skipping",
+                    watch_path=str(watch_dir),
+                )
+        
+        # Ensure at least one valid directory exists
+        if not valid_directories:
+            error_msg = "No valid watch directories found. At least one accessible directory is required."
+            self.logger.critical(error_msg)
+            raise RuntimeError(error_msg)
+        
+        # Create a directory watcher for each valid directory
+        for watch_dir in valid_directories:
+            watcher = DirectoryWatcher(
+                watch_path=watch_dir,
+                file_prefixes=self.config.processing.file_prefixes,
+                callback=self._process_file_callback,
+            )
+            watcher.start()
+            self.directory_watchers.append(watcher)
+            self.logger.info(
+                "Directory watcher started",
+                watch_path=str(watch_dir),
+                prefixes=self.config.processing.file_prefixes,
+            )
         
         # Start health check thread
         self._health_check_thread = Thread(target=self._health_check_loop, daemon=True)
@@ -118,10 +146,11 @@ class ServiceOrchestrator:
         # Signal stop
         self._stop_event.set()
         
-        # Stop directory watcher
-        if self.directory_watcher:
-            self.directory_watcher.stop()
-            self.logger.info("Directory watcher stopped")
+        # Stop all directory watchers
+        for watcher in self.directory_watchers:
+            watcher.stop()
+        
+        self.logger.info("All directory watchers stopped")
         
         # Wait for health check thread to finish
         if self._health_check_thread and self._health_check_thread.is_alive():
@@ -157,14 +186,27 @@ class ServiceOrchestrator:
         check_time = datetime.now()
         details: dict = {}
         
-        # Check watch directory accessibility
-        watch_dir_accessible = False
-        try:
-            watch_dir_accessible = self.config.watch_directory.exists() and self.config.watch_directory.is_dir()
-            details["watch_directory"] = str(self.config.watch_directory)
-            details["watch_directory_accessible"] = watch_dir_accessible
-        except Exception as e:
-            details["watch_directory_error"] = str(e)
+        # Check all watch directories accessibility
+        all_accessible = True
+        directory_status = {}
+        
+        for watch_dir in self.config.watch_directories:
+            try:
+                accessible = watch_dir.exists() and watch_dir.is_dir()
+                directory_status[str(watch_dir)] = accessible
+                if not accessible:
+                    all_accessible = False
+            except Exception as e:
+                directory_status[str(watch_dir)] = False
+                details[f"watch_directory_error_{watch_dir}"] = str(e)
+                all_accessible = False
+        
+        details["watch_directories"] = directory_status
+        details["all_directories_accessible"] = all_accessible
+        
+        # For backward compatibility, also set watch_directory_accessible in details
+        details["watch_directory_accessible"] = all_accessible
+        watch_dir_accessible = all_accessible
         
         # Check configuration validity
         config_valid = False
@@ -251,6 +293,24 @@ class ServiceOrchestrator:
                 self.logger.debug("File already being processed, skipping", file_path=str(file_path))
                 return
             self._processing_files.add(file_path)
+        
+        # Determine source directory and matched prefix
+        source_directory = file_path.parent
+        matched_prefix = None
+        
+        # Find which watcher detected this file to get the matched prefix
+        for watcher in self.directory_watchers:
+            if file_path.parent == watcher.watch_path:
+                matched_prefix = watcher.get_matched_prefix(file_path)
+                break
+        
+        # Log file detection with source directory and matched prefix
+        self.logger.info(
+            "File detected for processing",
+            file_path=str(file_path),
+            source_directory=str(source_directory),
+            matched_prefix=matched_prefix,
+        )
         
         try:
             result = self.file_processor.process_file(file_path)

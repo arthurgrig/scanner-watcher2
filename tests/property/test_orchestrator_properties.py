@@ -25,7 +25,7 @@ def create_test_config(watch_dir: Path) -> Config:
     """Create a test configuration."""
     return Config(
         version="1.0.0",
-        watch_directory=watch_dir,
+        watch_directories=[watch_dir],
         openai_api_key="test-key-12345",
         log_level="INFO",
         processing=ProcessingConfig(),

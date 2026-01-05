@@ -72,7 +72,7 @@ def test_file_detection_timeliness(
     # Create and start watcher with configurable prefix
     watcher = DirectoryWatcher(
         watch_path=watch_directory,
-        file_prefix=file_prefix,
+        file_prefixes=[file_prefix],
         callback=on_file_detected,
     )
     
@@ -149,7 +149,7 @@ def test_file_detection_ignores_non_matching_prefix(watch_directory: Path) -> No
     # Create and start watcher with configurable prefix
     watcher = DirectoryWatcher(
         watch_path=watch_directory,
-        file_prefix=file_prefix,
+        file_prefixes=[file_prefix],
         callback=on_file_detected,
     )
     
@@ -195,7 +195,7 @@ def test_file_detection_handles_watch_directory_unavailable(temp_dir: Path) -> N
     # Create watcher with non-existent directory
     watcher = DirectoryWatcher(
         watch_path=nonexistent_dir,
-        file_prefix=file_prefix,
+        file_prefixes=[file_prefix],
         callback=on_file_detected,
     )
     
@@ -260,7 +260,7 @@ def test_file_stability_waiting(
     # Create and start watcher with configurable prefix
     watcher = DirectoryWatcher(
         watch_path=watch_directory,
-        file_prefix=file_prefix,
+        file_prefixes=[file_prefix],
         callback=on_file_detected,
     )
     
@@ -352,7 +352,7 @@ def test_file_stability_with_immediate_stable_file(watch_directory: Path) -> Non
     
     watcher = DirectoryWatcher(
         watch_path=watch_directory,
-        file_prefix=file_prefix,
+        file_prefixes=[file_prefix],
         callback=on_file_detected,
     )
     
@@ -404,7 +404,7 @@ def test_is_file_stable_method(watch_directory: Path) -> None:
     
     watcher = DirectoryWatcher(
         watch_path=watch_directory,
-        file_prefix=file_prefix,
+        file_prefixes=[file_prefix],
         callback=lambda p: None,
     )
     
@@ -458,7 +458,7 @@ def test_multiple_file_queueing(
     # Create and start watcher with configurable prefix
     watcher = DirectoryWatcher(
         watch_path=watch_directory,
-        file_prefix=file_prefix,
+        file_prefixes=[file_prefix],
         callback=on_file_detected,
     )
     
@@ -525,7 +525,7 @@ def test_multiple_file_queueing_with_single_file(watch_directory: Path) -> None:
     
     watcher = DirectoryWatcher(
         watch_path=watch_directory,
-        file_prefix=file_prefix,
+        file_prefixes=[file_prefix],
         callback=on_file_detected,
     )
     
@@ -578,7 +578,7 @@ def test_multiple_file_queueing_no_duplicates(watch_directory: Path) -> None:
     
     watcher = DirectoryWatcher(
         watch_path=watch_directory,
-        file_prefix=file_prefix,
+        file_prefixes=[file_prefix],
         callback=on_file_detected,
     )
     
@@ -653,7 +653,7 @@ def test_idle_cpu_usage(
     # Create and start watcher with configurable prefix
     watcher = DirectoryWatcher(
         watch_path=watch_directory,
-        file_prefix=file_prefix,
+        file_prefixes=[file_prefix],
         callback=on_file_detected,
     )
     
@@ -716,7 +716,7 @@ def test_idle_resource_usage_with_short_period(watch_directory: Path) -> None:
     
     watcher = DirectoryWatcher(
         watch_path=watch_directory,
-        file_prefix=file_prefix,
+        file_prefixes=[file_prefix],
         callback=on_file_detected,
     )
     
@@ -767,7 +767,7 @@ def test_watcher_can_be_stopped_and_restarted(watch_directory: Path) -> None:
     
     watcher = DirectoryWatcher(
         watch_path=watch_directory,
-        file_prefix=file_prefix,
+        file_prefixes=[file_prefix],
         callback=on_file_detected,
     )
     
@@ -870,7 +870,7 @@ def test_configurable_prefix_detection(
     # Create and start watcher with custom prefix
     watcher = DirectoryWatcher(
         watch_path=watch_directory,
-        file_prefix=file_prefix,
+        file_prefixes=[file_prefix],
         callback=on_file_detected,
     )
     
@@ -955,7 +955,7 @@ def test_configurable_prefix_with_special_characters(watch_directory: Path) -> N
         
         watcher = DirectoryWatcher(
             watch_path=watch_directory,
-            file_prefix=file_prefix,
+            file_prefixes=[file_prefix],
             callback=on_file_detected,
         )
         
@@ -1021,7 +1021,7 @@ def test_configurable_prefix_case_sensitivity(watch_directory: Path) -> None:
     
     watcher = DirectoryWatcher(
         watch_path=watch_directory,
-        file_prefix=file_prefix,
+        file_prefixes=[file_prefix],
         callback=on_file_detected,
     )
     
@@ -1084,7 +1084,7 @@ def test_configurable_prefix_empty_string_handling(watch_directory: Path) -> Non
     
     watcher = DirectoryWatcher(
         watch_path=watch_directory,
-        file_prefix=file_prefix,
+        file_prefixes=[file_prefix],
         callback=on_file_detected,
     )
     

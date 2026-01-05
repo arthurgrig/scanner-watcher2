@@ -1,10 +1,20 @@
 {
+  "_comment_watch_directories": "List of directories to monitor for new files. Each path must be absolute. You can monitor multiple directories simultaneously.",
   "version": "1.0.0",
-  "watch_directory": "C:\\Scans",
+  "watch_directories": [
+    "C:\\Scans",
+    "C:\\Documents\\Incoming",
+    "D:\\SharedScans"
+  ],
   "openai_api_key": "YOUR_API_KEY_HERE",
   "log_level": "INFO",
+  "_comment_file_prefixes": "List of file prefixes to detect. Files starting with any of these prefixes will be processed. Examples: SCAN-, DOC-, IMG-",
   "processing": {
-    "file_prefix": "SCAN-",
+    "file_prefixes": [
+      "SCAN-",
+      "DOC-",
+      "IMG-"
+    ],
     "pages_to_extract": 3,
     "retry_attempts": 3,
     "retry_delay_seconds": 5,

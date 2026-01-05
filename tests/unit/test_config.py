@@ -23,7 +23,7 @@ class TestProcessingConfig:
     def test_default_values(self) -> None:
         """Verify default configuration values."""
         config = ProcessingConfig()
-        assert config.file_prefix == "SCAN-"
+        assert config.file_prefixes == ["SCAN-"]
         assert config.pages_to_extract == 3
         assert config.retry_attempts == 3
         assert config.retry_delay_seconds == 5
@@ -46,20 +46,20 @@ class TestProcessingConfig:
 
     def test_valid_file_prefix(self) -> None:
         """Verify valid file prefix is accepted."""
-        config = ProcessingConfig(file_prefix="DOC-")
-        assert config.file_prefix == "DOC-"
+        config = ProcessingConfig(file_prefixes=["DOC-"])
+        assert config.file_prefixes == ["DOC-"]
 
     def test_empty_file_prefix_rejected(self) -> None:
         """Verify empty file prefix is rejected."""
         with pytest.raises(ValidationError) as exc_info:
-            ProcessingConfig(file_prefix="")
-        assert "file_prefix" in str(exc_info.value)
+            ProcessingConfig(file_prefixes=[""])
+        assert "file_prefixes" in str(exc_info.value)
 
     def test_whitespace_file_prefix_rejected(self) -> None:
         """Verify whitespace-only file prefix is rejected."""
         with pytest.raises(ValidationError) as exc_info:
-            ProcessingConfig(file_prefix="   ")
-        assert "file_prefix" in str(exc_info.value)
+            ProcessingConfig(file_prefixes=["   "])
+        assert "file_prefixes" in str(exc_info.value)
 
     def test_file_prefix_with_invalid_chars_rejected(self) -> None:
         """Verify file prefix with invalid filename characters is rejected."""
@@ -76,13 +76,13 @@ class TestProcessingConfig:
         ]
         for prefix in invalid_prefixes:
             with pytest.raises(ValidationError) as exc_info:
-                ProcessingConfig(file_prefix=prefix)
-            assert "file_prefix" in str(exc_info.value)
+                ProcessingConfig(file_prefixes=[prefix])
+            assert "file_prefixes" in str(exc_info.value)
 
     def test_file_prefix_strips_whitespace(self) -> None:
         """Verify file prefix strips leading/trailing whitespace."""
-        config = ProcessingConfig(file_prefix="  SCAN-  ")
-        assert config.file_prefix == "SCAN-"
+        config = ProcessingConfig(file_prefixes=["  SCAN-  "])
+        assert config.file_prefixes == ["SCAN-"]
 
     def test_valid_pages_to_extract(self) -> None:
         """Verify valid pages_to_extract values are accepted."""
@@ -113,13 +113,13 @@ class TestConfig:
         
         config = Config(
             version="1.0.0",
-            watch_directory=watch_dir,
+            watch_directories=[watch_dir],
             openai_api_key="test-key-123",
             log_level="INFO",
         )
         
         assert config.version == "1.0.0"
-        assert config.watch_directory == watch_dir
+        assert config.watch_directories == [watch_dir]
         assert config.openai_api_key == "test-key-123"
         assert config.log_level == "INFO"
 
@@ -132,7 +132,7 @@ class TestConfig:
         
         config = Config(
             version="1.0.0",
-            watch_directory=watch_dir,
+            watch_directories=[watch_dir],
             openai_api_key="test-key",
             log_level="debug",
         )
@@ -149,7 +149,7 @@ class TestConfig:
         with pytest.raises(ValidationError) as exc_info:
             Config(
                 version="1.0.0",
-                watch_directory=watch_dir,
+                watch_directories=[watch_dir],
                 openai_api_key="test-key",
                 log_level="INVALID",
             )
@@ -166,7 +166,7 @@ class TestConfig:
         with pytest.raises(ValidationError) as exc_info:
             Config(
                 version="1.0.0",
-                watch_directory=watch_dir,
+                watch_directories=[watch_dir],
                 openai_api_key="",
                 log_level="INFO",
             )
@@ -183,7 +183,7 @@ class TestConfig:
         with pytest.raises(ValidationError) as exc_info:
             Config(
                 version="1.0.0",
-                watch_directory=watch_dir,
+                watch_directories=[watch_dir],
                 openai_api_key="   ",
                 log_level="INFO",
             )
@@ -195,12 +195,12 @@ class TestConfig:
         with pytest.raises(ValidationError) as exc_info:
             Config(
                 version="1.0.0",
-                watch_directory=Path("relative/path"),
+                watch_directories=[Path("relative/path")],
                 openai_api_key="test-key",
                 log_level="INFO",
             )
         
-        assert "watch_directory" in str(exc_info.value)
+        assert "watch_directories" in str(exc_info.value)
 
     def test_default_nested_configs(self) -> None:
         """Verify nested configs use default factories."""
@@ -211,7 +211,7 @@ class TestConfig:
         
         config = Config(
             version="1.0.0",
-            watch_directory=watch_dir,
+            watch_directories=[watch_dir],
             openai_api_key="test-key",
         )
         
