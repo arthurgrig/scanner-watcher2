@@ -70,9 +70,9 @@ def test_classification_is_standard_category_for_enum_match():
 
 
 def test_classification_is_standard_category_for_specific_type():
-    """Test that is_standard_category returns False for specific types."""
+    """Test that is_standard_category returns False for specific types not in enum."""
     classification = Classification(
-        document_type="Panel List",
+        document_type="Custom Document Type",
         confidence=0.95,
         identifiers={},
         raw_response={},
@@ -147,7 +147,7 @@ def test_classify_document_with_specific_type(ai_service):
             {
                 "message": {
                     "content": json.dumps({
-                        "document_type": "Panel List",
+                        "document_type": "Custom Document Type",
                         "confidence": 0.90,
                         "identifiers": {"case_number": "12345"},
                     }),
@@ -162,7 +162,7 @@ def test_classify_document_with_specific_type(ai_service):
         result = ai_service.classify_document(image)
         
         assert isinstance(result, Classification)
-        assert result.document_type == "Panel List"
+        assert result.document_type == "Custom Document Type"
         assert result.is_standard_category is False
         assert result.is_other is False
 
@@ -302,11 +302,12 @@ def test_enum_category_mapping_examples(ai_service):
     # Test cases: (input document type, expected to be standard category)
     test_cases = [
         ("Medical Report", True),
-        ("QME Report", False),  # Specific type, not enum value
         ("Court Order", True),
-        ("Finding and Award", False),  # Specific type, not enum value
         ("Insurance Correspondence", True),
-        ("Panel List", False),  # Specific type, not enum value
+        ("Panel List", True),  # Now a standard enum category
+        ("Finding and Award", True),  # Now a standard enum category
+        ("QME Appointment Notification Form", True),  # Now a standard enum category
+        ("Custom Document Type", False),  # Specific type, not enum value
         ("OTHER_Unknown Document", False),  # OTHER fallback
     ]
     

@@ -565,13 +565,14 @@ def test_comprehensive_prompt_inclusion(dummy) -> None:
     # Get all supported document types (enum categories)
     supported_types = ai_service.get_supported_document_types()
     
-    # Verify we have 15 standard categories (all enum values except OTHER)
+    # Verify we have 30 standard categories (all enum values except OTHER)
     expected_count = len(DocumentType) - 1  # Exclude OTHER
     assert len(supported_types) == expected_count, \
         f"Expected {expected_count} document type categories, found {len(supported_types)}"
     
     # Verify all expected enum categories are present
     expected_categories = [
+        # Existing categories
         "Medical Report",
         "Injury Report",
         "Claim Form",
@@ -587,6 +588,22 @@ def test_comprehensive_prompt_inclusion(dummy) -> None:
         "Subpoena",
         "Motion",
         "Brief",
+        # New categories
+        "Panel List",
+        "QME Appointment Notification Form",
+        "Agreed Medical Evaluator Report",
+        "Qualified Medical Evaluator Report",
+        "PTP Initial Report",
+        "PTP P&S Report",
+        "RFA",
+        "UR Approval",
+        "UR Denial",
+        "Modified UR",
+        "Finding and Award",
+        "Finding & Order",
+        "Advocacy/Cover Letter",
+        "Declaration of Readiness to Proceed",
+        "Objection to Declaration of Readiness to Proceed",
     ]
     
     for expected_category in expected_categories:

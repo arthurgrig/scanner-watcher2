@@ -26,6 +26,7 @@ class DocumentType(Enum):
     to flexible classification for documents outside predefined categories.
     """
 
+    # Existing categories (15)
     MEDICAL_REPORT = "Medical Report"
     INJURY_REPORT = "Injury Report"
     CLAIM_FORM = "Claim Form"
@@ -41,6 +42,24 @@ class DocumentType(Enum):
     SUBPOENA = "Subpoena"
     MOTION = "Motion"
     BRIEF = "Brief"
+    
+    # New categories (15)
+    PANEL_LIST = "Panel List"
+    QME_APPOINTMENT_NOTIFICATION = "QME Appointment Notification Form"
+    AME_REPORT = "Agreed Medical Evaluator Report"
+    QME_REPORT = "Qualified Medical Evaluator Report"
+    PTP_INITIAL_REPORT = "PTP Initial Report"
+    PTP_PS_REPORT = "PTP P&S Report"
+    RFA = "RFA"
+    UR_APPROVAL = "UR Approval"
+    UR_DENIAL = "UR Denial"
+    MODIFIED_UR = "Modified UR"
+    FINDING_AND_AWARD = "Finding and Award"
+    FINDING_AND_ORDER = "Finding & Order"
+    ADVOCACY_COVER_LETTER = "Advocacy/Cover Letter"
+    DECLARATION_OF_READINESS = "Declaration of Readiness to Proceed"
+    OBJECTION_TO_DOR = "Objection to Declaration of Readiness to Proceed"
+    
     OTHER = "Other"
 
 

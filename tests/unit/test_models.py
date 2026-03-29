@@ -84,6 +84,7 @@ class TestDocumentType:
 
     def test_document_type_enum_values(self) -> None:
         """Verify all document type enum values are defined."""
+        # Existing categories
         assert DocumentType.MEDICAL_REPORT.value == "Medical Report"
         assert DocumentType.INJURY_REPORT.value == "Injury Report"
         assert DocumentType.CLAIM_FORM.value == "Claim Form"
@@ -99,11 +100,29 @@ class TestDocumentType:
         assert DocumentType.SUBPOENA.value == "Subpoena"
         assert DocumentType.MOTION.value == "Motion"
         assert DocumentType.BRIEF.value == "Brief"
+        
+        # New categories
+        assert DocumentType.PANEL_LIST.value == "Panel List"
+        assert DocumentType.QME_APPOINTMENT_NOTIFICATION.value == "QME Appointment Notification Form"
+        assert DocumentType.AME_REPORT.value == "Agreed Medical Evaluator Report"
+        assert DocumentType.QME_REPORT.value == "Qualified Medical Evaluator Report"
+        assert DocumentType.PTP_INITIAL_REPORT.value == "PTP Initial Report"
+        assert DocumentType.PTP_PS_REPORT.value == "PTP P&S Report"
+        assert DocumentType.RFA.value == "RFA"
+        assert DocumentType.UR_APPROVAL.value == "UR Approval"
+        assert DocumentType.UR_DENIAL.value == "UR Denial"
+        assert DocumentType.MODIFIED_UR.value == "Modified UR"
+        assert DocumentType.FINDING_AND_AWARD.value == "Finding and Award"
+        assert DocumentType.FINDING_AND_ORDER.value == "Finding & Order"
+        assert DocumentType.ADVOCACY_COVER_LETTER.value == "Advocacy/Cover Letter"
+        assert DocumentType.DECLARATION_OF_READINESS.value == "Declaration of Readiness to Proceed"
+        assert DocumentType.OBJECTION_TO_DOR.value == "Objection to Declaration of Readiness to Proceed"
+        
         assert DocumentType.OTHER.value == "Other"
 
     def test_document_type_enum_count(self) -> None:
-        """Verify we have exactly 16 document type categories."""
-        assert len(DocumentType) == 16
+        """Verify we have exactly 31 document type categories (30 + OTHER)."""
+        assert len(DocumentType) == 31
 
 
 class TestClassificationHelperMethods:
@@ -120,9 +139,9 @@ class TestClassificationHelperMethods:
         assert classification.is_standard_category is True
 
     def test_is_standard_category_for_specific_type(self) -> None:
-        """Verify is_standard_category returns False for specific types."""
+        """Verify is_standard_category returns False for specific types not in enum."""
         classification = Classification(
-            document_type="Panel List",
+            document_type="Custom Document Type",
             confidence=0.90,
             identifiers={},
             raw_response={},
@@ -150,9 +169,9 @@ class TestClassificationHelperMethods:
         assert classification.is_other is False
 
     def test_is_other_for_specific_type(self) -> None:
-        """Verify is_other returns False for specific types."""
+        """Verify is_other returns False for specific types not in enum."""
         classification = Classification(
-            document_type="Panel List",
+            document_type="Custom Document Type",
             confidence=0.90,
             identifiers={},
             raw_response={},

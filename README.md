@@ -227,53 +227,76 @@ Configuration is stored in `%APPDATA%\ScannerWatcher2\config.json`. The configur
 
 ### Supported Document Types
 
-Scanner-Watcher2 uses a flexible three-tier classification system to identify and organize legal documents:
+Scanner-Watcher2 supports 30 document type categories commonly encountered in California Workers' Compensation and legal workflows. The system uses a flexible three-tier classification approach to accurately identify and organize documents.
 
-#### Tier 1: Standard Categories (Enum-Based)
+#### All Supported Document Types (30 Categories)
 
-The system first attempts to classify documents into high-level standard categories:
-
-- **Medical Report**: QME reports, AME reports, PTP reports, IME reports, medical evaluations
-- **Injury Report**: Initial injury reports, incident reports
-- **Claim Form**: DWC-1, claim applications
-- **Deposition**: Deposition transcripts
-- **Expert Witness Report**: Expert opinions, vocational evaluations
-- **Settlement Agreement**: Compromise & Release, Stipulations
-- **Court Order**: WCAB orders, findings, awards
-- **Insurance Correspondence**: Carrier letters, UR decisions, RFAs
-- **Wage Statement**: Earnings records, pay stubs
-- **Vocational Report**: Vocational rehabilitation reports
+**Medical Reports & Evaluations (9 types)**
+- **Medical Report**: General medical evaluations and reports
 - **IME Report**: Independent Medical Examinations
-- **Surveillance Report**: Investigation reports
-- **Subpoena**: Subpoenas, subpoena duces tecum
-- **Motion**: Motions, petitions, DORs
-- **Brief**: Legal briefs, memoranda
+- **AME Report**: Agreed Medical Evaluator examination reports
+- **QME Report**: Qualified Medical Evaluator examination reports
+- **PTP Initial Report**: Primary Treating Physician initial evaluation
+- **PTP P&S Report**: Primary Treating Physician Permanent & Stationary report
+- **Expert Witness Report**: Expert medical opinions and evaluations
+- **Vocational Report**: Vocational rehabilitation assessments
+- **Panel List**: Medical evaluator panel assignment lists
 
-#### Tier 2: Specific Document Types
+**Utilization Review Documents (4 types)**
+- **RFA**: Request for Authorization for medical treatment
+- **UR Approval**: Utilization Review approval decisions
+- **UR Denial**: Utilization Review denial decisions
+- **Modified UR**: Modified Utilization Review decisions
 
-If a document doesn't clearly fit a standard category, the AI provides a specific document type name:
+**Court & Legal Documents (8 types)**
+- **Court Order**: WCAB orders and decisions
+- **Finding and Award**: WCAB Finding and Award documents
+- **Finding & Order**: WCAB Finding & Order documents
+- **Motion**: Motions and petitions
+- **Brief**: Legal briefs and memoranda
+- **Subpoena**: Subpoenas and subpoena duces tecum
+- **Declaration of Readiness**: Declaration of Readiness to Proceed filings
+- **Objection to DOR**: Objections to Declaration of Readiness to Proceed
 
-- Panel List
-- QME Appointment Notification Form
-- Declaration of Readiness to Proceed
-- Objection to Declaration of Readiness to Proceed
-- Finding and Award
-- Finding & Order
-- And other specific legal document types
+**Claims & Administrative Documents (5 types)**
+- **Claim Form**: DWC-1 and claim applications
+- **Injury Report**: Initial injury reports and incident reports
+- **QME Appointment Notification**: QME appointment scheduling forms
+- **Wage Statement**: Earnings records and pay stubs
+- **Surveillance Report**: Investigation and surveillance reports
 
-#### Tier 3: OTHER Fallback
+**Correspondence & Agreements (4 types)**
+- **Insurance Correspondence**: Carrier letters and communications
+- **Advocacy/Cover Letter**: Advocacy letters and cover correspondence
+- **Settlement Agreement**: Compromise & Release and Stipulations
+- **Deposition**: Deposition transcripts
 
-For documents that cannot be classified, the system returns:
-- `OTHER_[Brief Description]` (e.g., "OTHER_Unidentified Medical Form")
+#### Three-Tier Classification System
 
-This allows the system to handle any document while clearly marking unclassifiable ones.
+The system uses an intelligent classification approach to handle any document:
+
+**Tier 1: Standard Categories**
+- Documents are first matched against the 30 standard categories listed above
+- Each category has specific characteristics the AI recognizes
+- Most documents will be classified into one of these categories
+
+**Tier 2: Specific Document Types**
+- If a document doesn't clearly fit a standard category, the AI provides a specific type name
+- Examples: "Medical-Legal Report", "Lien Conference Statement", "C&R Agreement"
+- Allows flexibility for documents that need more precise identification
+
+**Tier 3: OTHER Fallback**
+- For documents that cannot be classified, the system returns: `OTHER_[Brief Description]`
+- Example: "OTHER_Unidentified Medical Form"
+- Clearly marks unclassifiable documents while providing context
 
 #### Classification Benefits
 
-- **Flexibility**: Handles documents outside predefined lists
-- **Consistency**: Groups similar documents into standard categories
+- **Comprehensive Coverage**: 30 standard categories cover most legal workflows
+- **Flexibility**: Handles documents outside predefined categories
+- **Consistency**: Groups similar documents for easier organization
 - **Clarity**: Unknown documents clearly marked with OTHER prefix
-- **Better Organization**: Files grouped by high-level category for easier sorting
+- **Accuracy**: Multi-page analysis (up to 3 pages) improves classification precision
 
 The AI analyzes up to 3 pages from each document to accurately identify the document type, even when documents have similar formatting or content. You can adjust the number of pages analyzed using the `pages_to_extract` configuration option.
 

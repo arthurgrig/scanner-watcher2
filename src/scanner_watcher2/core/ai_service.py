@@ -192,6 +192,7 @@ class AIService:
             
             # Build list of standard categories with descriptions
             category_descriptions = [
+                # Existing categories (15)
                 "- MEDICAL_REPORT: Any medical evaluation, QME, AME, PTP, IME reports",
                 "- INJURY_REPORT: Initial injury reports, incident reports",
                 "- CLAIM_FORM: DWC-1, claim applications",
@@ -207,6 +208,22 @@ class AIService:
                 "- SUBPOENA: Subpoenas, subpoena duces tecum",
                 "- MOTION: Motions, petitions, DORs",
                 "- BRIEF: Legal briefs, memoranda",
+                # New categories (15)
+                "- PANEL_LIST: Medical evaluator panel assignment lists",
+                "- QME_APPOINTMENT_NOTIFICATION: QME appointment scheduling forms",
+                "- AME_REPORT: Agreed Medical Evaluator examination reports",
+                "- QME_REPORT: Qualified Medical Evaluator examination reports",
+                "- PTP_INITIAL_REPORT: Primary Treating Physician initial evaluation",
+                "- PTP_PS_REPORT: Primary Treating Physician Permanent & Stationary report",
+                "- RFA: Request for Authorization for medical treatment",
+                "- UR_APPROVAL: Utilization Review approval decisions",
+                "- UR_DENIAL: Utilization Review denial decisions",
+                "- MODIFIED_UR: Modified Utilization Review decisions",
+                "- FINDING_AND_AWARD: WCAB Finding and Award documents",
+                "- FINDING_AND_ORDER: WCAB Finding & Order documents",
+                "- ADVOCACY_COVER_LETTER: Advocacy letters and cover correspondence",
+                "- DECLARATION_OF_READINESS: Declaration of Readiness to Proceed filings",
+                "- OBJECTION_TO_DOR: Objections to Declaration of Readiness",
             ]
             
             categories_text = "\n".join(category_descriptions)
