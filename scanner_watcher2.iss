@@ -7,6 +7,7 @@
 ; - Handles clean uninstallation
 
 #define MyAppName "Scanner-Watcher2"
+#define MyAppDataDir "ScannerWatcher2"
 #define MyAppVersion "1.1.0"
 #define MyAppPublisher "Scanner-Watcher2 Team"
 #define MyAppURL "https://github.com/scanner-watcher2"
@@ -64,19 +65,19 @@ Source: "LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
-Name: "{group}\{#MyAppName} Configuration"; Filename: "notepad.exe"; Parameters: """{userappdata}\{#MyAppName}\config.json"""; Comment: "Edit Scanner-Watcher2 configuration"
-Name: "{group}\{#MyAppName} Logs"; Filename: "{userappdata}\{#MyAppName}\logs"; Comment: "View Scanner-Watcher2 logs"
+Name: "{group}\{#MyAppName} Configuration"; Filename: "notepad.exe"; Parameters: """{userappdata}\{#MyAppDataDir}\config.json"""; Comment: "Edit Scanner-Watcher2 configuration"
+Name: "{group}\{#MyAppName} Logs"; Filename: "{userappdata}\{#MyAppDataDir}\logs"; Comment: "View Scanner-Watcher2 logs"
 Name: "{group}\Start {#MyAppName} Service"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--start-service"; Comment: "Start the Scanner-Watcher2 service"
 Name: "{group}\Stop {#MyAppName} Service"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--stop-service"; Comment: "Stop the Scanner-Watcher2 service"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppName} Configuration"; Filename: "notepad.exe"; Parameters: """{userappdata}\{#MyAppName}\config.json"""; Tasks: desktopicon; Comment: "Edit Scanner-Watcher2 configuration"
+Name: "{autodesktop}\{#MyAppName} Configuration"; Filename: "notepad.exe"; Parameters: """{userappdata}\{#MyAppDataDir}\config.json"""; Tasks: desktopicon; Comment: "Edit Scanner-Watcher2 configuration"
 
 [Run]
 ; Create AppData directories and copy configuration
-Filename: "{cmd}"; Parameters: "/c if not exist ""{userappdata}\{#MyAppName}"" mkdir ""{userappdata}\{#MyAppName}"""; Flags: runhidden
-Filename: "{cmd}"; Parameters: "/c if not exist ""{userappdata}\{#MyAppName}\logs"" mkdir ""{userappdata}\{#MyAppName}\logs"""; Flags: runhidden
-Filename: "{cmd}"; Parameters: "/c if not exist ""{userappdata}\{#MyAppName}\temp"" mkdir ""{userappdata}\{#MyAppName}\temp"""; Flags: runhidden
-Filename: "{cmd}"; Parameters: "/c if not exist ""{userappdata}\{#MyAppName}\config.json"" copy ""{app}\config_template.json"" ""{userappdata}\{#MyAppName}\config.json"""; Flags: runhidden
+Filename: "{cmd}"; Parameters: "/c if not exist ""{userappdata}\{#MyAppDataDir}"" mkdir ""{userappdata}\{#MyAppDataDir}"""; Flags: runhidden
+Filename: "{cmd}"; Parameters: "/c if not exist ""{userappdata}\{#MyAppDataDir}\logs"" mkdir ""{userappdata}\{#MyAppDataDir}\logs"""; Flags: runhidden
+Filename: "{cmd}"; Parameters: "/c if not exist ""{userappdata}\{#MyAppDataDir}\temp"" mkdir ""{userappdata}\{#MyAppDataDir}\temp"""; Flags: runhidden
+Filename: "{cmd}"; Parameters: "/c if not exist ""{userappdata}\{#MyAppDataDir}\config.json"" copy ""{app}\config_template.json"" ""{userappdata}\{#MyAppDataDir}\config.json"""; Flags: runhidden
 ; Install the Windows service
 Filename: "{app}\{#MyAppExeName}"; Parameters: "--install-service"; StatusMsg: "Installing Windows service..."; Flags: runhidden
 ; Prompt to start service after installation
@@ -90,7 +91,7 @@ Filename: "{app}\{#MyAppExeName}"; Parameters: "--remove-service"; Flags: runhid
 
 [UninstallDelete]
 ; Clean up temporary files (but preserve logs and configuration)
-Type: filesandordirs; Name: "{userappdata}\{#MyAppName}\temp"
+Type: filesandordirs; Name: "{userappdata}\{#MyAppDataDir}\temp"
 
 [Code]
 var
@@ -174,7 +175,7 @@ begin
   if CurStep = ssPostInstall then
   begin
     { Update configuration file with user-provided values }
-    ConfigFile := ExpandConstant('{userappdata}\{#MyAppName}\config.json');
+    ConfigFile := ExpandConstant('{userappdata}\{#MyAppDataDir}\config.json');
     
     if FileExists(ConfigFile) then
     begin
@@ -219,7 +220,7 @@ begin
   if Response = IDNO then
   begin
     { User wants to remove everything }
-    DelTree(ExpandConstant('{userappdata}\{#MyAppName}'), True, True, True);
+    DelTree(ExpandConstant('{userappdata}\{#MyAppDataDir}'), True, True, True);
   end;
   
   Result := True;
@@ -228,4 +229,4 @@ end;
 [Messages]
 WelcomeLabel2=This will install [name/ver] on your computer.%n%nScanner-Watcher2 is a Windows-native legal document processing system that automatically monitors directories for scanned documents, uses AI to classify them, and organizes files with meaningful names.%n%nYou will need an OpenAI API key to use this application.
 FinishedHeadingLabel=Completing the [name] Setup Wizard
-FinishedLabel=Scanner-Watcher2 has been installed on your computer.%n%nBefore starting the service:%n1. Ensure your watch directory exists%n2. Verify your OpenAI API key is correct%n3. Review the configuration at:%n   %APPDATA%\Scanner-Watcher2\config.json%n%nThe service can be started from the Start Menu or Windows Services Manager.
+FinishedLabel=Scanner-Watcher2 has been installed on your computer.%n%nBefore starting the service:%n1. Ensure your watch directory exists%n2. Verify your OpenAI API key is correct%n3. Review the configuration at:%n   %APPDATA%\ScannerWatcher2\config.json%n%nThe service can be started from the Start Menu or Windows Services Manager.
