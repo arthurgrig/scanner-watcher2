@@ -64,15 +64,17 @@ class TestGetDefaultConfigPath:
 
     def test_default_config_path_with_appdata(self) -> None:
         """Test default config path when APPDATA is set."""
-        with patch.dict("os.environ", {"APPDATA": "/test/appdata"}):
-            path = get_default_config_path()
-            assert path == Path("/test/appdata/ScannerWatcher2/config.json")
+        with patch("platform.system", return_value="Windows"):
+            with patch.dict("os.environ", {"APPDATA": "/test/appdata"}):
+                path = get_default_config_path()
+                assert path == Path("/test/appdata/ScannerWatcher2/config.json")
 
     def test_default_config_path_without_appdata(self) -> None:
         """Test default config path when APPDATA is not set."""
-        with patch.dict("os.environ", {}, clear=True):
-            path = get_default_config_path()
-            assert path == Path("./ScannerWatcher2/config.json")
+        with patch("platform.system", return_value="Windows"):
+            with patch.dict("os.environ", {}, clear=True):
+                path = get_default_config_path()
+                assert path == Path("./ScannerWatcher2/config.json")
 
 
 class TestRunConsoleMode:
@@ -106,8 +108,8 @@ class TestRunConsoleMode:
 
             # Create mock config
             mock_config = MagicMock()
-            mock_config.watch_directory = watch_dir
-            mock_config.processing.file_prefix = "SCAN-"
+            mock_config.watch_directories = [watch_dir]
+            mock_config.processing.file_prefixes = ["SCAN-"]
             mock_config.log_level = "INFO"
             mock_config.ai.model = "gpt-4-vision-preview"
             mock_config.logging.max_file_size_mb = 10
@@ -161,8 +163,8 @@ class TestRunConsoleMode:
 
             # Create mock config with nonexistent watch directory
             mock_config = MagicMock()
-            mock_config.watch_directory = watch_dir
-            mock_config.processing.file_prefix = "SCAN-"
+            mock_config.watch_directories = [watch_dir]
+            mock_config.processing.file_prefixes = ["SCAN-"]
             mock_config.log_level = "INFO"
             mock_config.ai.model = "gpt-4-vision-preview"
             mock_config.logging.max_file_size_mb = 10

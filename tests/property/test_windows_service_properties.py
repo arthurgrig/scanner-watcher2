@@ -53,7 +53,7 @@ def mock_config(temp_config_dir, tmp_path):
 
     return Config(
         version="1.0.0",
-        watch_directory=watch_dir,
+        watch_directories=[watch_dir],
         openai_api_key="test-key-123",
         log_level="INFO",
         processing=ProcessingConfig(),

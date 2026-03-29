@@ -171,8 +171,8 @@ def run_console_mode(config_path: Path, log_level_override: str | None = None) -
 
     print()
     print("Configuration:")
-    print(f"  Watch Directory: {config.watch_directory}")
-    print(f"  File Prefix: {config.processing.file_prefix}")
+    print(f"  Watch Directories: {', '.join(str(d) for d in config.watch_directories)}")
+    print(f"  File Prefixes: {', '.join(config.processing.file_prefixes)}")
     print(f"  Log Level: {config.log_level}")
     print(f"  AI Model: {config.ai.model}")
     print()
@@ -196,12 +196,13 @@ def run_console_mode(config_path: Path, log_level_override: str | None = None) -
     print(f"Logs will be written to: {log_dir}")
     print()
 
-    # Validate watch directory
-    if not config.watch_directory.exists():
-        logger.error("Watch directory does not exist", path=str(config.watch_directory))
-        print(f"ERROR: Watch directory does not exist: {config.watch_directory}")
-        print("Please create the directory or update the configuration.")
-        sys.exit(1)
+    # Validate watch directories
+    for watch_dir in config.watch_directories:
+        if not watch_dir.exists():
+            logger.error("Watch directory does not exist", path=str(watch_dir))
+            print(f"ERROR: Watch directory does not exist: {watch_dir}")
+            print("Please create the directory or update the configuration.")
+            sys.exit(1)
 
     # Initialize orchestrator
     print("Initializing service orchestrator...")
@@ -222,8 +223,9 @@ def run_console_mode(config_path: Path, log_level_override: str | None = None) -
         print("=" * 70)
         print("Scanner-Watcher2 is now running")
         print("=" * 70)
-        print(f"Monitoring: {config.watch_directory}")
-        print(f"Looking for files with prefix: {config.processing.file_prefix}")
+        for watch_dir in config.watch_directories:
+            print(f"Monitoring: {watch_dir}")
+        print(f"Looking for files with prefixes: {', '.join(config.processing.file_prefixes)}")
         print()
         print("Press Ctrl+C to stop")
         print()
