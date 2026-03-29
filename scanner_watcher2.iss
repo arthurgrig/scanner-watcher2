@@ -101,13 +101,17 @@ var
 
 procedure InitializeWizard;
 begin
-  { Create custom wizard page for watch directory }
+  { Create custom wizard page for watch directories }
   WatchDirPage := CreateInputDirPage(wpSelectDir,
-    'Select Watch Directory', 'Where should Scanner-Watcher2 monitor for scanned documents?',
-    'Select the folder where your scanner saves PDF files, then click Next.',
+    'Select Watch Directories', 'Which folders should Scanner-Watcher2 monitor for scanned documents?',
+    'Add one or more folders where your scanners save PDF files. You can add additional folders later by editing the configuration file.',
     False, '');
-  WatchDirPage.Add('Watch Directory:');
+  WatchDirPage.Add('Primary Watch Directory:');
   WatchDirPage.Values[0] := 'C:\Scans';
+  WatchDirPage.Add('Additional Directory (optional):');
+  WatchDirPage.Values[1] := '';
+  WatchDirPage.Add('Additional Directory (optional):');
+  WatchDirPage.Values[2] := '';
 
   { Create custom wizard page for OpenAI API key }
   ApiKeyPage := CreateInputQueryPage(WatchDirPage.ID,
@@ -121,12 +125,12 @@ function NextButtonClick(CurPageID: Integer): Boolean;
 begin
   Result := True;
   
-  { Validate watch directory }
+  { Validate watch directories - at least the primary is required }
   if CurPageID = WatchDirPage.ID then
   begin
     if WatchDirPage.Values[0] = '' then
     begin
-      MsgBox('Please specify a watch directory.', mbError, MB_OK);
+      MsgBox('Please specify at least one watch directory.', mbError, MB_OK);
       Result := False;
     end;
   end;
@@ -164,13 +168,45 @@ begin
   end;
 end;
 
+function BuildWatchDirsJson(): String;
+var
+  DirCount: Integer;
+  I: Integer;
+  Dir: String;
+begin
+  { Count non-empty directories }
+  DirCount := 0;
+  for I := 0 to 2 do
+  begin
+    if WatchDirPage.Values[I] <> '' then
+      DirCount := DirCount + 1;
+  end;
+
+  { Build JSON array of watch directories }
+  Result := '  "watch_directories": [' + #13#10;
+  DirCount := 0;
+  for I := 0 to 2 do
+  begin
+    Dir := WatchDirPage.Values[I];
+    if Dir <> '' then
+    begin
+      if DirCount > 0 then
+        Result := Result + ',' + #13#10;
+      Result := Result + '    "' + EscapeBackslashes(Dir) + '"';
+      DirCount := DirCount + 1;
+    end;
+  end;
+  Result := Result + #13#10 + '  ],';
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   ConfigFile: String;
   ConfigContent: TStringList;
+  NewContent: TStringList;
   I: Integer;
   Line: String;
-  WatchDir: String;
+  SkippingArray: Boolean;
 begin
   if CurStep = ssPostInstall then
   begin
@@ -180,31 +216,46 @@ begin
     if FileExists(ConfigFile) then
     begin
       ConfigContent := TStringList.Create;
+      NewContent := TStringList.Create;
       try
         ConfigContent.LoadFromFile(ConfigFile);
+        SkippingArray := False;
         
-        { Prepare watch directory with escaped backslashes }
-        WatchDir := EscapeBackslashes(WatchDirPage.Values[0]);
-        
-        { Update watch directory }
         for I := 0 to ConfigContent.Count - 1 do
         begin
           Line := ConfigContent[I];
-          if Pos('"watch_directory"', Line) > 0 then
+
+          { Replace the watch_directories array block }
+          if Pos('"watch_directories"', Line) > 0 then
           begin
-            ConfigContent[I] := '  "watch_directory": "' + WatchDir + '",';
+            NewContent.Add(BuildWatchDirsJson());
+            if Pos('[', Line) > 0 then
+              SkippingArray := True;
+            Continue;
           end;
-          
+
+          { Skip lines inside the old watch_directories array }
+          if SkippingArray then
+          begin
+            if Pos(']', Line) > 0 then
+              SkippingArray := False;
+            Continue;
+          end;
+
           { Update API key if provided }
           if (ApiKeyPage.Values[0] <> '') and (Pos('"openai_api_key"', Line) > 0) then
           begin
-            ConfigContent[I] := '  "openai_api_key": "' + ApiKeyPage.Values[0] + '",';
+            NewContent.Add('  "openai_api_key": "' + ApiKeyPage.Values[0] + '",');
+            Continue;
           end;
+
+          NewContent.Add(Line);
         end;
         
-        ConfigContent.SaveToFile(ConfigFile);
+        NewContent.SaveToFile(ConfigFile);
       finally
         ConfigContent.Free;
+        NewContent.Free;
       end;
     end;
   end;
@@ -229,4 +280,4 @@ end;
 [Messages]
 WelcomeLabel2=This will install [name/ver] on your computer.%n%nScanner-Watcher2 is a Windows-native legal document processing system that automatically monitors directories for scanned documents, uses AI to classify them, and organizes files with meaningful names.%n%nYou will need an OpenAI API key to use this application.
 FinishedHeadingLabel=Completing the [name] Setup Wizard
-FinishedLabel=Scanner-Watcher2 has been installed on your computer.%n%nBefore starting the service:%n1. Ensure your watch directory exists%n2. Verify your OpenAI API key is correct%n3. Review the configuration at:%n   %APPDATA%\ScannerWatcher2\config.json%n%nThe service can be started from the Start Menu or Windows Services Manager.
+FinishedLabel=Scanner-Watcher2 has been installed on your computer.%n%nBefore starting the service:%n1. Ensure your watch directories exist%n2. Verify your OpenAI API key is correct%n3. Review the configuration at:%n   %APPDATA%\ScannerWatcher2\config.json%n%nYou can add more watch directories or file prefixes by editing the configuration file.%n%nThe service can be started from the Start Menu or Windows Services Manager.
