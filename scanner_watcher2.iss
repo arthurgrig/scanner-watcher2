@@ -10,7 +10,7 @@
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "Scanner-Watcher2 Team"
 #define MyAppURL "https://github.com/scanner-watcher2"
-#define MyAppExeName "scanner_watcher2.exe"
+#define MyAppExeName "ScannerWatcher2.exe"
 #define MyAppServiceName "ScannerWatcher2"
 #define MyAppServiceDisplayName "Scanner-Watcher2 Document Processing Service"
 
@@ -31,8 +31,8 @@ LicenseFile=LICENSE.txt
 ; Uncomment the following line to run in non administrative install mode (install for current user only.)
 ;PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
-OutputDir=dist
-OutputBaseFilename=scanner-watcher2-setup-{#MyAppVersion}
+OutputDir=Output
+OutputBaseFilename=ScannerWatcher2Setup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
