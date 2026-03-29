@@ -87,3 +87,26 @@ jobs:
           name: scanner-watcher2-executable
           path: dist/ScannerWatcher2.exe
           retention-days: 30
+
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup -y
+          refreshenv
+        shell: pwsh
+
+      - name: Build installer
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" scanner_watcher2.iss
+          if (-not (Test-Path "Output\ScannerWatcher2Setup.exe")) {
+            Write-Error "Installer not found at Output\ScannerWatcher2Setup.exe"
+            exit 1
+          }
+          Write-Host "Installer built successfully"
+        shell: pwsh
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scanner-watcher2-installer
+          path: Output/ScannerWatcher2Setup.exe
+          retention-days: 30
