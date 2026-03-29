@@ -7,7 +7,7 @@
 ; - Handles clean uninstallation
 
 #define MyAppName "Scanner-Watcher2"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "Scanner-Watcher2 Team"
 #define MyAppURL "https://github.com/scanner-watcher2"
 #define MyAppExeName "ScannerWatcher2.exe"
