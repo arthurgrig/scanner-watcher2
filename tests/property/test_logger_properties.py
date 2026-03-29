@@ -22,7 +22,9 @@ from scanner_watcher2.infrastructure.logger import Logger
 @given(
     message=st.text(min_size=1, max_size=200),
     component=st.text(min_size=1, max_size=50, alphabet=st.characters(blacklist_characters="\n\r\t")),
-    context_key=st.text(min_size=1, max_size=20, alphabet=st.characters(min_codepoint=97, max_codepoint=122)),
+    context_key=st.text(min_size=1, max_size=20, alphabet=st.characters(min_codepoint=97, max_codepoint=122)).filter(
+        lambda k: k not in ["event", "timestamp", "level", "component"]  # Filter out reserved field names
+    ),
     context_value=st.one_of(
         st.text(min_size=0, max_size=100),
         st.integers(),

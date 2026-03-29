@@ -79,8 +79,13 @@ def test_filename_structure_property(
     
     Validates: Requirements 3.1
     """
-    # Create a source file
-    source_file = temp_dir / "SCAN-test.pdf"
+    # Create a unique subdirectory for this test example to avoid conflicts
+    import uuid
+    test_subdir = temp_dir / f"test_{uuid.uuid4().hex[:8]}"
+    test_subdir.mkdir(exist_ok=True)
+    
+    # Create a source file in the subdirectory
+    source_file = test_subdir / "SCAN-test.pdf"
     source_file.write_text("test content")
 
     # Generate target filename with expected structure: YYYY-MM-DD_DocumentType_Identifier.pdf
