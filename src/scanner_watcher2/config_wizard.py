@@ -322,10 +322,10 @@ class ConfigWizard:
             
             config = Config(
                 version="1.0.0",
-                watch_directory=watch_directory,
+                watch_directories=[watch_directory],
                 openai_api_key=api_key,
                 log_level=log_level,
-                processing=ProcessingConfig(file_prefix=file_prefix),
+                processing=ProcessingConfig(file_prefixes=[file_prefix]),
             )
 
             # Save configuration

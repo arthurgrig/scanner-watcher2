@@ -63,7 +63,11 @@ class ConfigManager:
                 pass
 
         # Convert string paths to Path objects
-        if "watch_directory" in config_data:
+        if "watch_directories" in config_data:
+            config_data["watch_directories"] = [
+                Path(d) for d in config_data["watch_directories"]
+            ]
+        elif "watch_directory" in config_data:
             config_data["watch_directory"] = Path(config_data["watch_directory"])
 
         if "processing" in config_data and "temp_directory" in config_data["processing"]:
@@ -102,8 +106,10 @@ class ConfigManager:
             )
 
         # Convert Path objects to strings
-        if "watch_directory" in config_dict:
-            config_dict["watch_directory"] = str(config_dict["watch_directory"])
+        if "watch_directories" in config_dict:
+            config_dict["watch_directories"] = [
+                str(d) for d in config_dict["watch_directories"]
+            ]
 
         if (
             "processing" in config_dict
@@ -235,7 +241,7 @@ class ConfigManager:
 
         default_config = Config(
             version="1.0.0",
-            watch_directory=default_watch_dir,
+            watch_directories=[default_watch_dir],
             openai_api_key="YOUR_API_KEY_HERE",
             log_level="INFO",
         )

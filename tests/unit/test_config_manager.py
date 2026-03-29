@@ -29,7 +29,7 @@ class TestConfigManager:
         
         config_data = {
             "version": "1.0.0",
-            "watch_directory": watch_dir,
+            "watch_directories": [watch_dir],
             "openai_api_key": "test-key-123",
             "log_level": "INFO",
         }
@@ -92,7 +92,7 @@ class TestConfigManager:
         
         config = Config(
             version="1.0.0",
-            watch_directory=watch_dir,
+            watch_directories=[watch_dir],
             openai_api_key="test-key-123",
             log_level="INFO",
         )
@@ -122,7 +122,7 @@ class TestConfigManager:
         
         config = Config(
             version="1.0.0",
-            watch_directory=watch_dir,
+            watch_directories=[watch_dir],
             openai_api_key="test-key",
             log_level="INFO",
         )
@@ -184,7 +184,7 @@ class TestConfigManager:
         # Create and save initial config
         config1 = Config(
             version="1.0.0",
-            watch_directory=watch_dir,
+            watch_directories=[watch_dir],
             openai_api_key="key1",
             log_level="INFO",
         )
@@ -195,7 +195,7 @@ class TestConfigManager:
         # Update config file
         config2 = Config(
             version="2.0.0",
-            watch_directory=watch_dir,
+            watch_directories=[watch_dir],
             openai_api_key="key2",
             log_level="DEBUG",
         )
@@ -248,7 +248,7 @@ class TestConfigManager:
         
         config = Config(
             version="1.0.0",
-            watch_directory=watch_dir,
+            watch_directories=[watch_dir],
             openai_api_key=original_key,
             log_level="INFO",
         )
