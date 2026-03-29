@@ -95,26 +95,32 @@ Type: filesandordirs; Name: "{userappdata}\{#MyAppDataDir}\temp"
 
 [Code]
 var
-  ConfigPage: TInputQueryWizardPage;
   WatchDirPage: TInputDirWizardPage;
+  ExtraDirsPage: TInputQueryWizardPage;
   ApiKeyPage: TInputQueryWizardPage;
 
 procedure InitializeWizard;
 begin
-  { Create custom wizard page for watch directories }
+  { Primary watch directory - uses dir picker with browse button }
   WatchDirPage := CreateInputDirPage(wpSelectDir,
-    'Select Watch Directories', 'Which folders should Scanner-Watcher2 monitor for scanned documents?',
-    'Add one or more folders where your scanners save PDF files. You can add additional folders later by editing the configuration file.',
+    'Select Watch Directory', 'Which folder should Scanner-Watcher2 monitor for scanned documents?',
+    'Select the primary folder where your scanner saves PDF files.',
     False, '');
-  WatchDirPage.Add('Primary Watch Directory:');
+  WatchDirPage.Add('Watch Directory:');
   WatchDirPage.Values[0] := 'C:\Scans';
-  WatchDirPage.Add('Additional Directory (optional):');
-  WatchDirPage.Values[1] := '';
-  WatchDirPage.Add('Additional Directory (optional):');
-  WatchDirPage.Values[2] := '';
 
-  { Create custom wizard page for OpenAI API key }
-  ApiKeyPage := CreateInputQueryPage(WatchDirPage.ID,
+  { Additional watch directories - text fields that allow empty values }
+  ExtraDirsPage := CreateInputQueryPage(WatchDirPage.ID,
+    'Additional Watch Directories (Optional)',
+    'Add more folders to monitor',
+    'Enter full paths to additional scan folders. Leave blank to skip. You can always add more later by editing the configuration file.');
+  ExtraDirsPage.Add('Additional Directory:', False);
+  ExtraDirsPage.Values[0] := '';
+  ExtraDirsPage.Add('Additional Directory:', False);
+  ExtraDirsPage.Values[1] := '';
+
+  { OpenAI API key }
+  ApiKeyPage := CreateInputQueryPage(ExtraDirsPage.ID,
     'OpenAI API Configuration', 'Enter your OpenAI API key',
     'Scanner-Watcher2 uses OpenAI GPT-4 Vision to classify documents. You need an API key from https://platform.openai.com');
   ApiKeyPage.Add('OpenAI API Key:', True);
@@ -171,31 +177,40 @@ end;
 function BuildWatchDirsJson(): String;
 var
   DirCount: Integer;
-  I: Integer;
   Dir: String;
 begin
-  { Count non-empty directories }
-  DirCount := 0;
-  for I := 0 to 2 do
-  begin
-    if WatchDirPage.Values[I] <> '' then
-      DirCount := DirCount + 1;
-  end;
-
-  { Build JSON array of watch directories }
+  { Build JSON array from primary dir + optional extra dirs }
   Result := '  "watch_directories": [' + #13#10;
   DirCount := 0;
-  for I := 0 to 2 do
+
+  { Primary directory (always present) }
+  Dir := WatchDirPage.Values[0];
+  if Dir <> '' then
   begin
-    Dir := WatchDirPage.Values[I];
-    if Dir <> '' then
-    begin
-      if DirCount > 0 then
-        Result := Result + ',' + #13#10;
-      Result := Result + '    "' + EscapeBackslashes(Dir) + '"';
-      DirCount := DirCount + 1;
-    end;
+    Result := Result + '    "' + EscapeBackslashes(Dir) + '"';
+    DirCount := DirCount + 1;
   end;
+
+  { Extra directory 1 }
+  Dir := ExtraDirsPage.Values[0];
+  if Dir <> '' then
+  begin
+    if DirCount > 0 then
+      Result := Result + ',' + #13#10;
+    Result := Result + '    "' + EscapeBackslashes(Dir) + '"';
+    DirCount := DirCount + 1;
+  end;
+
+  { Extra directory 2 }
+  Dir := ExtraDirsPage.Values[1];
+  if Dir <> '' then
+  begin
+    if DirCount > 0 then
+      Result := Result + ',' + #13#10;
+    Result := Result + '    "' + EscapeBackslashes(Dir) + '"';
+    DirCount := DirCount + 1;
+  end;
+
   Result := Result + #13#10 + '  ],';
 end;
 
