@@ -53,7 +53,7 @@ class ProcessingConfig(BaseModel):
 class AIConfig(BaseModel):
     """Configuration for AI service."""
 
-    model: str = "gpt-4-vision-preview"
+    model: str = "gpt-4o-mini"
     max_tokens: int = 500
     temperature: float = 0.1
     timeout_seconds: int = 30
