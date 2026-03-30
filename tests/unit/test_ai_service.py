@@ -299,16 +299,15 @@ def test_system_prompt_includes_all_enum_categories(ai_service):
 
 def test_enum_category_mapping_examples(ai_service):
     """Test that common document types map to correct enum categories."""
-    # Test cases: (input document type, expected to be standard category)
     test_cases = [
         ("Medical Report", True),
         ("Court Order", True),
         ("Insurance Correspondence", True),
-        ("Panel List", True),  # Now a standard enum category
-        ("Finding and Award", True),  # Now a standard enum category
-        ("QME Appointment Notification Form", True),  # Now a standard enum category
-        ("Custom Document Type", False),  # Specific type, not enum value
-        ("OTHER_Unknown Document", False),  # OTHER fallback
+        ("Panel List", True),
+        ("Finding and Award", True),
+        ("QME Appointment Notification Form", True),
+        ("Custom Document Type", False),
+        ("OTHER_Unknown Document", False),
     ]
     
     for doc_type, should_be_standard in test_cases:
@@ -321,3 +320,168 @@ def test_enum_category_mapping_examples(ai_service):
         
         assert classification.is_standard_category == should_be_standard, \
             f"Document type '{doc_type}' standard category check failed"
+
+
+def test_classify_document_text_sends_text_only(ai_service):
+    """Test that classify_document_text sends a text-only API call (no images)."""
+    sample_text = (
+        "WORKERS COMPENSATION APPEALS BOARD\n"
+        "Case No: ADJ-12345\n"
+        "FINDINGS AND AWARD\n"
+        "The Board issues the following Findings and Award."
+    )
+
+    mock_response = {
+        "choices": [
+            {
+                "message": {
+                    "content": json.dumps({
+                        "document_type": "Finding and Award",
+                        "confidence": 0.98,
+                        "identifiers": {"case_number": "ADJ-12345"},
+                    }),
+                },
+            },
+        ],
+    }
+
+    with patch.object(ai_service.client.chat.completions, "create") as mock_create:
+        mock_create.return_value = Mock(model_dump=lambda: mock_response)
+
+        result = ai_service.classify_document_text(sample_text)
+
+        assert isinstance(result, Classification)
+        assert result.document_type == "Finding and Award"
+        assert result.confidence == 0.98
+        assert result.identifiers["case_number"] == "ADJ-12345"
+
+        # Verify the user message is plain text, not a list of content blocks
+        call_args = mock_create.call_args
+        messages = call_args.kwargs["messages"]
+        user_content = messages[1]["content"]
+        assert isinstance(user_content, str), "Text mode should send a plain string, not image blocks"
+        assert "ADJ-12345" in user_content
+
+
+def test_classify_document_text_truncates_long_text(ai_service):
+    """Test that very long text is truncated to 3000 chars."""
+    long_text = "A" * 10_000
+
+    mock_response = {
+        "choices": [
+            {
+                "message": {
+                    "content": json.dumps({
+                        "document_type": "Brief",
+                        "confidence": 0.7,
+                        "identifiers": {},
+                    }),
+                },
+            },
+        ],
+    }
+
+    with patch.object(ai_service.client.chat.completions, "create") as mock_create:
+        mock_create.return_value = Mock(model_dump=lambda: mock_response)
+
+        ai_service.classify_document_text(long_text)
+
+        call_args = mock_create.call_args
+        user_content = call_args.kwargs["messages"][1]["content"]
+        # The prompt prefix + 3000 chars of text
+        assert len(user_content) < 3200
+
+
+def test_classify_document_image_sends_detail_low(ai_service):
+    """Test that image classification sends images with detail:low."""
+    image = Image.new("RGB", (200, 200), color="white")
+
+    mock_response = {
+        "choices": [
+            {
+                "message": {
+                    "content": json.dumps({
+                        "document_type": "Medical Report",
+                        "confidence": 0.95,
+                        "identifiers": {},
+                    }),
+                },
+            },
+        ],
+    }
+
+    with patch.object(ai_service.client.chat.completions, "create") as mock_create:
+        mock_create.return_value = Mock(model_dump=lambda: mock_response)
+
+        ai_service.classify_document(image)
+
+        call_args = mock_create.call_args
+        user_content = call_args.kwargs["messages"][1]["content"]
+        assert isinstance(user_content, list), "Image mode should send a list of content blocks"
+
+        image_blocks = [b for b in user_content if b.get("type") == "image_url"]
+        assert len(image_blocks) == 1
+        assert image_blocks[0]["image_url"]["detail"] == "low"
+
+
+def test_classify_document_logs_classification_mode(ai_service):
+    """Test that both paths pass classification_mode to the API call."""
+    mock_response = {
+        "choices": [
+            {
+                "message": {
+                    "content": json.dumps({
+                        "document_type": "Brief",
+                        "confidence": 0.9,
+                        "identifiers": {},
+                    }),
+                },
+            },
+        ],
+    }
+
+    with patch.object(ai_service.client.chat.completions, "create") as mock_create, \
+         patch.object(ai_service.logger, "info") as mock_info:
+        mock_create.return_value = Mock(model_dump=lambda: mock_response)
+
+        # Text path
+        ai_service.classify_document_text("Some legal text content here.")
+        api_log = [c for c in mock_info.call_args_list if "classification_mode" in c.kwargs]
+        assert any(c.kwargs["classification_mode"] == "text" for c in api_log)
+
+        mock_info.reset_mock()
+
+        # Image path
+        image = Image.new("RGB", (100, 100), color="white")
+        ai_service.classify_document(image)
+        api_log = [c for c in mock_info.call_args_list if "classification_mode" in c.kwargs]
+        assert any(c.kwargs["classification_mode"] == "image" for c in api_log)
+
+
+def test_build_system_prompt_shared(ai_service):
+    """Test that both paths use the same system prompt."""
+    mock_response = {
+        "choices": [
+            {
+                "message": {
+                    "content": json.dumps({
+                        "document_type": "Brief",
+                        "confidence": 0.9,
+                        "identifiers": {},
+                    }),
+                },
+            },
+        ],
+    }
+
+    with patch.object(ai_service.client.chat.completions, "create") as mock_create:
+        mock_create.return_value = Mock(model_dump=lambda: mock_response)
+
+        ai_service.classify_document_text("Some text")
+        text_system_prompt = mock_create.call_args.kwargs["messages"][0]["content"]
+
+        image = Image.new("RGB", (100, 100), color="white")
+        ai_service.classify_document(image)
+        image_system_prompt = mock_create.call_args.kwargs["messages"][0]["content"]
+
+        assert text_system_prompt == image_system_prompt
