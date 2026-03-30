@@ -175,12 +175,12 @@ class AIService:
                 }
             ]
 
-            # Add all images to the content
-            for idx, base64_image in enumerate(base64_images):
+            for base64_image in base64_images:
                 content.append({
                     "type": "image_url",
                     "image_url": {
                         "url": f"data:image/png;base64,{base64_image}",
+                        "detail": "low",
                     },
                 })
 
