@@ -245,6 +245,7 @@ begin
     ScriptContent.Add('    -Trigger $trigger `');
     ScriptContent.Add('    -Settings $settings `');
     ScriptContent.Add('    -Description "{#MyAppServiceDisplayName}" `');
+    ScriptContent.Add('    -RunLevel Highest `');
     ScriptContent.Add('    -Force');
     ScriptContent.SaveToFile(ScriptPath);
   finally
