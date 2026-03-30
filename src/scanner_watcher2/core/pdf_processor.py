@@ -39,6 +39,67 @@ class PDFProcessor:
         self.logger = logger
         self.error_handler = error_handler
 
+    MIN_TEXT_LENGTH = 100
+
+    def extract_text(self, pdf_path: Path, num_pages: int = 3) -> str | None:
+        """
+        Extract text from the first N pages of a PDF.
+
+        Returns the combined text if it looks like real content (not OCR
+        garbage or form-field noise), otherwise None.
+
+        Args:
+            pdf_path: Path to PDF file
+            num_pages: Number of pages to extract text from
+
+        Returns:
+            Extracted text if sufficient, None if the PDF is image-only or text is too sparse
+        """
+        try:
+            doc = fitz.open(pdf_path)
+            try:
+                pages_to_read = min(num_pages, len(doc))
+                page_texts: list[str] = []
+                for i in range(pages_to_read):
+                    text = doc[i].get_text("text").strip()
+                    if text:
+                        page_texts.append(text)
+
+                if not page_texts:
+                    return None
+
+                combined = "\n\n--- Page Break ---\n\n".join(page_texts)
+
+                if len(combined) < self.MIN_TEXT_LENGTH:
+                    if self.logger:
+                        self.logger.debug(
+                            "Extracted text too short, treating as image-only PDF",
+                            pdf_path=str(pdf_path),
+                            text_length=len(combined),
+                        )
+                    return None
+
+                if self.logger:
+                    self.logger.info(
+                        "Text extracted from PDF",
+                        pdf_path=str(pdf_path),
+                        text_length=len(combined),
+                        pages_with_text=len(page_texts),
+                    )
+                return combined
+
+            finally:
+                doc.close()
+
+        except Exception as e:
+            if self.logger:
+                self.logger.debug(
+                    "Text extraction failed, will use image fallback",
+                    pdf_path=str(pdf_path),
+                    error=str(e),
+                )
+            return None
+
     def validate_pdf(self, pdf_path: Path) -> bool:
         """
         Check if PDF is valid and readable.

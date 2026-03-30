@@ -29,6 +29,9 @@ def mock_components(tmp_path: Path) -> tuple:
     ai_service = Mock(spec=AIService)
     error_handler = Mock(spec=ErrorHandler)
     logger = Mock(spec=Logger)
+
+    # Text extraction returns None so these tests exercise the image path
+    pdf_processor.extract_text.return_value = None
     
     # Use real FileManager but mock error_handler.execute_with_retry
     file_manager = FileManager(

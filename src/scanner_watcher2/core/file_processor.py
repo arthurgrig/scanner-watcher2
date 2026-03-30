@@ -150,119 +150,120 @@ class FileProcessor:
             # Get file size for metrics
             file_size_bytes = file_path.stat().st_size
 
-            # Step 2: Extract first pages from PDF (default: 3 pages)
-            self.logger.debug(
-                "Extracting pages from PDF",
-                file_path=str(file_path),
-                correlation_id=correlation_id,
-            )
+            # Step 2: Try text extraction first (much cheaper than vision)
+            extracted_text = self.pdf_processor.extract_text(file_path, num_pages=3)
+            classification_mode: str
 
-            try:
-                # Extract multiple pages (default 3, or fewer if PDF has less)
-                page_images = self.pdf_processor.extract_first_pages(file_path, num_pages=3)
-                
-                self.logger.debug(
-                    "Pages extracted successfully",
-                    num_pages=len(page_images),
-                    correlation_id=correlation_id,
-                )
-            except Exception as e:
-                error_type = self.error_handler.classify_error(e)
-                error_message = f"PDF extraction failed: {str(e)}"
-                
-                self.logger.error(
-                    error_message,
-                    file_path=str(file_path),
-                    error_type=error_type.value,
-                    correlation_id=correlation_id,
-                )
-                
-                # Rename file with ERROR prefix
-                new_file_path = self._rename_with_error_prefix(file_path, "ERROR")
-                
-                return ProcessingResult(
-                    success=False,
-                    file_path=file_path,
-                    document_type=None,
-                    new_file_path=new_file_path,
-                    processing_time_ms=int((time.time() - start_time) * 1000),
-                    error=error_message,
-                    correlation_id=correlation_id,
-                )
-
-            # Step 3: Optimize images for API transmission
-            self.logger.debug(
-                "Optimizing images for API transmission",
-                num_images=len(page_images),
-                correlation_id=correlation_id,
-            )
-
-            try:
-                optimized_images = [
-                    self.pdf_processor.optimize_image(img) for img in page_images
-                ]
-            except Exception as e:
-                error_message = f"Image optimization failed: {str(e)}"
-                
-                self.logger.error(
-                    error_message,
-                    file_path=str(file_path),
-                    correlation_id=correlation_id,
-                )
-                
-                # Rename file with ERROR prefix
-                new_file_path = self._rename_with_error_prefix(file_path, "ERROR")
-                
-                return ProcessingResult(
-                    success=False,
-                    file_path=file_path,
-                    document_type=None,
-                    new_file_path=new_file_path,
-                    processing_time_ms=int((time.time() - start_time) * 1000),
-                    error=error_message,
-                    correlation_id=correlation_id,
-                )
-
-            # Step 4: Classify document using AI with all pages
-            self.logger.debug(
-                "Classifying document with AI",
-                num_images=len(optimized_images),
-                correlation_id=correlation_id,
-            )
-
-            try:
-                classification = self.ai_service.classify_document(optimized_images)
-                document_type = classification.document_type
-                
+            if extracted_text:
+                # Text available — use text-only classification
+                classification_mode = "text"
                 self.logger.info(
-                    "Document classified successfully",
-                    document_type=document_type,
-                    confidence=classification.confidence,
-                    correlation_id=correlation_id,
-                )
-            except Exception as e:
-                error_type = self.error_handler.classify_error(e)
-                error_message = f"AI classification failed: {str(e)}"
-                
-                self.logger.error(
-                    error_message,
+                    "Using text-based classification (cheaper)",
                     file_path=str(file_path),
-                    error_type=error_type.value,
+                    text_length=len(extracted_text),
                     correlation_id=correlation_id,
                 )
-                
-                # Rename file with UNKNOWN prefix (AI couldn't categorize)
-                new_file_path = self._rename_with_error_prefix(file_path, "UNKNOWN")
-                
-                return ProcessingResult(
-                    success=False,
-                    file_path=file_path,
-                    document_type=None,
-                    new_file_path=new_file_path,
-                    processing_time_ms=int((time.time() - start_time) * 1000),
-                    error=error_message,
+
+                try:
+                    classification = self.ai_service.classify_document_text(extracted_text)
+                    document_type = classification.document_type
+
+                    self.logger.info(
+                        "Document classified successfully",
+                        document_type=document_type,
+                        confidence=classification.confidence,
+                        classification_mode=classification_mode,
+                        correlation_id=correlation_id,
+                    )
+                except Exception as e:
+                    error_type = self.error_handler.classify_error(e)
+                    error_message = f"AI text classification failed: {str(e)}"
+                    self.logger.error(
+                        error_message,
+                        file_path=str(file_path),
+                        error_type=error_type.value,
+                        correlation_id=correlation_id,
+                    )
+                    new_file_path = self._rename_with_error_prefix(file_path, "UNKNOWN")
+                    return ProcessingResult(
+                        success=False, file_path=file_path, document_type=None,
+                        new_file_path=new_file_path,
+                        processing_time_ms=int((time.time() - start_time) * 1000),
+                        error=error_message, correlation_id=correlation_id,
+                    )
+            else:
+                # No usable text — fall back to image-based classification
+                classification_mode = "image"
+                self.logger.info(
+                    "No extractable text, using image-based classification",
+                    file_path=str(file_path),
                     correlation_id=correlation_id,
                 )
+
+                try:
+                    page_images = self.pdf_processor.extract_first_pages(file_path, num_pages=3)
+                    self.logger.debug(
+                        "Pages extracted successfully",
+                        num_pages=len(page_images),
+                        correlation_id=correlation_id,
+                    )
+                except Exception as e:
+                    error_type = self.error_handler.classify_error(e)
+                    error_message = f"PDF extraction failed: {str(e)}"
+                    self.logger.error(
+                        error_message, file_path=str(file_path),
+                        error_type=error_type.value, correlation_id=correlation_id,
+                    )
+                    new_file_path = self._rename_with_error_prefix(file_path, "ERROR")
+                    return ProcessingResult(
+                        success=False, file_path=file_path, document_type=None,
+                        new_file_path=new_file_path,
+                        processing_time_ms=int((time.time() - start_time) * 1000),
+                        error=error_message, correlation_id=correlation_id,
+                    )
+
+                try:
+                    optimized_images = [
+                        self.pdf_processor.optimize_image(img) for img in page_images
+                    ]
+                except Exception as e:
+                    error_message = f"Image optimization failed: {str(e)}"
+                    self.logger.error(
+                        error_message, file_path=str(file_path),
+                        correlation_id=correlation_id,
+                    )
+                    new_file_path = self._rename_with_error_prefix(file_path, "ERROR")
+                    return ProcessingResult(
+                        success=False, file_path=file_path, document_type=None,
+                        new_file_path=new_file_path,
+                        processing_time_ms=int((time.time() - start_time) * 1000),
+                        error=error_message, correlation_id=correlation_id,
+                    )
+
+                try:
+                    classification = self.ai_service.classify_document(optimized_images)
+                    document_type = classification.document_type
+                    self.logger.info(
+                        "Document classified successfully",
+                        document_type=document_type,
+                        confidence=classification.confidence,
+                        classification_mode=classification_mode,
+                        correlation_id=correlation_id,
+                    )
+                except Exception as e:
+                    error_type = self.error_handler.classify_error(e)
+                    error_message = f"AI classification failed: {str(e)}"
+                    self.logger.error(
+                        error_message, file_path=str(file_path),
+                        error_type=error_type.value, correlation_id=correlation_id,
+                    )
+                    new_file_path = self._rename_with_error_prefix(file_path, "UNKNOWN")
+                    return ProcessingResult(
+                        success=False, file_path=file_path, document_type=None,
+                        new_file_path=new_file_path,
+                        processing_time_ms=int((time.time() - start_time) * 1000),
+                        error=error_message, correlation_id=correlation_id,
+                    )
 
             # Step 5: Rename file based on classification
             self.logger.debug(
@@ -396,12 +397,12 @@ class FileProcessor:
             # Calculate processing metrics
             processing_time_ms = int((time.time() - start_time) * 1000)
 
-            # Log success with metrics (Requirement 7.4, 15.1)
             self.logger.info(
                 "File processed successfully",
                 file_path=str(file_path),
                 new_path=str(new_file_path),
                 document_type=document_type,
+                classification_mode=classification_mode,
                 processing_time_ms=processing_time_ms,
                 file_size_bytes=file_size_bytes,
                 correlation_id=correlation_id,

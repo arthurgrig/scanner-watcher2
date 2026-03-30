@@ -129,6 +129,146 @@ class AIService:
         buffer.seek(0)
         return base64.b64encode(buffer.read()).decode("utf-8")
 
+    def _build_system_prompt(self) -> str:
+        """Build the classification system prompt shared by text and image paths."""
+        category_descriptions = [
+            "- MEDICAL_REPORT: Any medical evaluation, QME, AME, PTP, IME reports",
+            "- INJURY_REPORT: Initial injury reports, incident reports",
+            "- CLAIM_FORM: DWC-1, claim applications",
+            "- DEPOSITION: Deposition transcripts",
+            "- EXPERT_WITNESS_REPORT: Expert opinions, vocational evaluations",
+            "- SETTLEMENT_AGREEMENT: Compromise & Release, Stipulations",
+            "- COURT_ORDER: WCAB orders, findings, awards",
+            "- INSURANCE_CORRESPONDENCE: Carrier letters, UR decisions, RFAs",
+            "- WAGE_STATEMENT: Earnings records, pay stubs",
+            "- VOCATIONAL_REPORT: Vocational rehabilitation reports",
+            "- IME_REPORT: Independent Medical Examinations",
+            "- SURVEILLANCE_REPORT: Investigation reports",
+            "- SUBPOENA: Subpoenas, subpoena duces tecum",
+            "- MOTION: Motions, petitions, DORs",
+            "- BRIEF: Legal briefs, memoranda",
+            "- PANEL_LIST: Medical evaluator panel assignment lists",
+            "- QME_APPOINTMENT_NOTIFICATION: QME appointment scheduling forms",
+            "- AME_REPORT: Agreed Medical Evaluator examination reports",
+            "- QME_REPORT: Qualified Medical Evaluator examination reports",
+            "- PTP_INITIAL_REPORT: Primary Treating Physician initial evaluation",
+            "- PTP_PS_REPORT: Primary Treating Physician Permanent & Stationary report",
+            "- RFA: Request for Authorization for medical treatment",
+            "- UR_APPROVAL: Utilization Review approval decisions",
+            "- UR_DENIAL: Utilization Review denial decisions",
+            "- MODIFIED_UR: Modified Utilization Review decisions",
+            "- FINDING_AND_AWARD: WCAB Finding and Award documents",
+            "- FINDING_AND_ORDER: WCAB Finding & Order documents",
+            "- ADVOCACY_COVER_LETTER: Advocacy letters and cover correspondence",
+            "- DECLARATION_OF_READINESS: Declaration of Readiness to Proceed filings",
+            "- OBJECTION_TO_DOR: Objections to Declaration of Readiness",
+        ]
+        categories_text = "\n".join(category_descriptions)
+
+        return (
+            "You are a legal document classifier for California Workers' Compensation cases. "
+            "Classify documents using this prioritized approach:\n\n"
+            "**PRIORITY 1 - Standard Categories (use if document clearly fits):**\n"
+            f"{categories_text}\n\n"
+            "**PRIORITY 2 - Specific Type (if no standard category fits):**\n"
+            "Provide the specific document type name (e.g., 'Panel List', 'QME Appointment Notification Form')\n\n"
+            "**PRIORITY 3 - Unknown (if cannot classify):**\n"
+            "Return 'OTHER_[Brief Description]' (e.g., 'OTHER_Unidentified Medical Form')\n\n"
+            "Return JSON with:\n"
+            "- document_type: The classification (standard category value like 'Medical Report', specific type, or OTHER_description)\n"
+            "- confidence: 0.0-1.0\n"
+            "- identifiers: Extract relevant information using these EXACT keys when available:\n"
+            "  * plaintiff_name: The plaintiff/injured worker name (HIGHEST PRIORITY - always extract)\n"
+            "  * patient_name: Alternative for plaintiff/injured worker (use if plaintiff_name not clear)\n"
+            "  * client_name: The employer/defendant company name\n"
+            "  * case_number: Any case, claim, or file number\n"
+            "  * date_of_injury: Date of injury if mentioned\n"
+            "  * report_date: Date of the report/document\n"
+            "  * evaluator_name: Name of doctor/evaluator if applicable\n"
+            "  * other relevant fields as needed\n"
+            "  Use these exact key names for consistency in file naming."
+        )
+
+    def _call_api(self, user_content: str | list[Any], classification_mode: str) -> Classification:
+        """
+        Make an API call and return parsed classification.
+
+        Args:
+            user_content: Text string or list of content blocks (text + images)
+            classification_mode: "text" or "image" — logged for diagnostics
+
+        Returns:
+            Classification result
+        """
+        start_time = time.time()
+        system_prompt = self._build_system_prompt()
+
+        def make_api_call() -> dict[str, Any]:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_content},
+                ],
+                max_tokens=self.max_tokens,
+                temperature=self.temperature,
+            )
+            return response.model_dump()
+
+        raw_response = self.error_handler.execute_with_retry(
+            func=make_api_call,
+            operation_name="OpenAI API call",
+            use_circuit_breaker=True,
+        )
+
+        latency_ms = int((time.time() - start_time) * 1000)
+        self.logger.info(
+            "OpenAI API call completed",
+            latency_ms=latency_ms,
+            model=self.model,
+            classification_mode=classification_mode,
+        )
+
+        return self.parse_classification(raw_response)
+
+    def classify_document_text(self, text: str) -> Classification:
+        """
+        Classify a document using extracted text (no vision needed).
+
+        Much cheaper than image-based classification because no image tokens
+        are consumed.  The text is truncated to ~3 000 chars to keep costs low.
+
+        Args:
+            text: Extracted text from the PDF
+
+        Returns:
+            Classification result
+
+        Raises:
+            APIError, APITimeoutError, RateLimitError
+        """
+        truncated = text[:3000]
+        user_content = (
+            "Classify this legal document based on its text content:\n\n"
+            f"{truncated}"
+        )
+
+        try:
+            return self._call_api(user_content, classification_mode="text")
+
+        except RateLimitError as e:
+            self.logger.warning("Rate limit exceeded (text mode)", error=str(e))
+            raise
+        except APITimeoutError as e:
+            self.logger.error("Timeout (text mode)", error=str(e))
+            raise
+        except APIError as e:
+            self.logger.error("API error (text mode)", status_code=getattr(e, "status_code", None), error=str(e))
+            raise
+        except Exception as e:
+            self.logger.error("Unexpected error (text mode)", error_type=type(e).__name__, error=str(e))
+            raise
+
     def classify_document(self, images: Image.Image | list[Image.Image]) -> Classification:
         """
         Send image(s) to OpenAI and get classification.
@@ -146,13 +286,8 @@ class AIService:
             APITimeoutError: If request times out
             RateLimitError: If rate limit is exceeded
         """
-        start_time = time.time()
-
         try:
-            # Normalize to list
             image_list = images if isinstance(images, list) else [images]
-
-            # Encode all images for API transmission
             base64_images = [self._encode_image(img) for img in image_list]
 
             if self.logger:
@@ -161,20 +296,13 @@ class AIService:
                     num_images=len(base64_images),
                 )
 
-            # Build content with text and all images
             num_pages = len(image_list)
             if num_pages == 1:
                 text_prompt = "Classify this legal document based on the provided page."
             else:
                 text_prompt = f"Classify this legal document. {num_pages} pages are provided for analysis."
-            
-            content: list[Any] = [
-                {
-                    "type": "text",
-                    "text": text_prompt,
-                }
-            ]
 
+            content: list[Any] = [{"type": "text", "text": text_prompt}]
             for base64_image in base64_images:
                 content.append({
                     "type": "image_url",
@@ -184,113 +312,7 @@ class AIService:
                     },
                 })
 
-            # Build comprehensive system prompt with prioritized classification logic
-            # Three-tier classification approach:
-            # Priority 1: Match to standard enum categories
-            # Priority 2: Use specific document type if no enum match
-            # Priority 3: Return "OTHER_[description]" if unclassifiable
-            
-            # Build list of standard categories with descriptions
-            category_descriptions = [
-                # Existing categories (15)
-                "- MEDICAL_REPORT: Any medical evaluation, QME, AME, PTP, IME reports",
-                "- INJURY_REPORT: Initial injury reports, incident reports",
-                "- CLAIM_FORM: DWC-1, claim applications",
-                "- DEPOSITION: Deposition transcripts",
-                "- EXPERT_WITNESS_REPORT: Expert opinions, vocational evaluations",
-                "- SETTLEMENT_AGREEMENT: Compromise & Release, Stipulations",
-                "- COURT_ORDER: WCAB orders, findings, awards",
-                "- INSURANCE_CORRESPONDENCE: Carrier letters, UR decisions, RFAs",
-                "- WAGE_STATEMENT: Earnings records, pay stubs",
-                "- VOCATIONAL_REPORT: Vocational rehabilitation reports",
-                "- IME_REPORT: Independent Medical Examinations",
-                "- SURVEILLANCE_REPORT: Investigation reports",
-                "- SUBPOENA: Subpoenas, subpoena duces tecum",
-                "- MOTION: Motions, petitions, DORs",
-                "- BRIEF: Legal briefs, memoranda",
-                # New categories (15)
-                "- PANEL_LIST: Medical evaluator panel assignment lists",
-                "- QME_APPOINTMENT_NOTIFICATION: QME appointment scheduling forms",
-                "- AME_REPORT: Agreed Medical Evaluator examination reports",
-                "- QME_REPORT: Qualified Medical Evaluator examination reports",
-                "- PTP_INITIAL_REPORT: Primary Treating Physician initial evaluation",
-                "- PTP_PS_REPORT: Primary Treating Physician Permanent & Stationary report",
-                "- RFA: Request for Authorization for medical treatment",
-                "- UR_APPROVAL: Utilization Review approval decisions",
-                "- UR_DENIAL: Utilization Review denial decisions",
-                "- MODIFIED_UR: Modified Utilization Review decisions",
-                "- FINDING_AND_AWARD: WCAB Finding and Award documents",
-                "- FINDING_AND_ORDER: WCAB Finding & Order documents",
-                "- ADVOCACY_COVER_LETTER: Advocacy letters and cover correspondence",
-                "- DECLARATION_OF_READINESS: Declaration of Readiness to Proceed filings",
-                "- OBJECTION_TO_DOR: Objections to Declaration of Readiness",
-            ]
-            
-            categories_text = "\n".join(category_descriptions)
-            
-            system_prompt = (
-                "You are a legal document classifier for California Workers' Compensation cases. "
-                "Classify documents using this prioritized approach:\n\n"
-                "**PRIORITY 1 - Standard Categories (use if document clearly fits):**\n"
-                f"{categories_text}\n\n"
-                "**PRIORITY 2 - Specific Type (if no standard category fits):**\n"
-                "Provide the specific document type name (e.g., 'Panel List', 'QME Appointment Notification Form')\n\n"
-                "**PRIORITY 3 - Unknown (if cannot classify):**\n"
-                "Return 'OTHER_[Brief Description]' (e.g., 'OTHER_Unidentified Medical Form')\n\n"
-                "Return JSON with:\n"
-                "- document_type: The classification (standard category value like 'Medical Report', specific type, or OTHER_description)\n"
-                "- confidence: 0.0-1.0\n"
-                "- identifiers: Extract relevant information using these EXACT keys when available:\n"
-                "  * plaintiff_name: The plaintiff/injured worker name (HIGHEST PRIORITY - always extract)\n"
-                "  * patient_name: Alternative for plaintiff/injured worker (use if plaintiff_name not clear)\n"
-                "  * client_name: The employer/defendant company name\n"
-                "  * case_number: Any case, claim, or file number\n"
-                "  * date_of_injury: Date of injury if mentioned\n"
-                "  * report_date: Date of the report/document\n"
-                "  * evaluator_name: Name of doctor/evaluator if applicable\n"
-                "  * other relevant fields as needed\n"
-                "  Use these exact key names for consistency in file naming."
-            )
-
-            # Prepare the API request
-            def make_api_call() -> dict[str, Any]:
-                """Make the API call with retry support."""
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": system_prompt,
-                        },
-                        {
-                            "role": "user",
-                            "content": content,
-                        },
-                    ],
-                    max_tokens=self.max_tokens,
-                    temperature=self.temperature,
-                )
-                return response.model_dump()
-
-            # Execute with retry logic and circuit breaker
-            raw_response = self.error_handler.execute_with_retry(
-                func=make_api_call,
-                operation_name="OpenAI API call",
-                use_circuit_breaker=True,
-            )
-
-            # Calculate and log API latency
-            latency_ms = int((time.time() - start_time) * 1000)
-            self.logger.info(
-                "OpenAI API call completed",
-                latency_ms=latency_ms,
-                model=self.model,
-            )
-
-            # Parse and validate the response
-            classification = self.parse_classification(raw_response)
-
-            return classification
+            return self._call_api(content, classification_mode="image")
 
         except RateLimitError as e:
             # Log rate limit error with retry-after if available
