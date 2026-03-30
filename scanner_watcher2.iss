@@ -8,7 +8,7 @@
 
 #define MyAppName "Scanner-Watcher2"
 #define MyAppDataDir "ScannerWatcher2"
-#define MyAppVersion "1.3.0"
+#define MyAppVersion "1.4.0"
 #define MyAppPublisher "Scanner-Watcher2 Team"
 #define MyAppURL "https://github.com/scanner-watcher2"
 #define MyAppExeName "ScannerWatcher2.exe"
@@ -65,10 +65,9 @@ Source: "LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
+Name: "{group}\Start {#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Comment: "Start Scanner-Watcher2 document processing"
 Name: "{group}\{#MyAppName} Configuration"; Filename: "notepad.exe"; Parameters: """{userappdata}\{#MyAppDataDir}\config.json"""; Comment: "Edit Scanner-Watcher2 configuration"
 Name: "{group}\{#MyAppName} Logs"; Filename: "{userappdata}\{#MyAppDataDir}\logs"; Comment: "View Scanner-Watcher2 logs"
-Name: "{group}\Start {#MyAppName} Service"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--start-service"; Comment: "Start the Scanner-Watcher2 service"
-Name: "{group}\Stop {#MyAppName} Service"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--stop-service"; Comment: "Stop the Scanner-Watcher2 service"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName} Configuration"; Filename: "notepad.exe"; Parameters: """{userappdata}\{#MyAppDataDir}\config.json"""; Tasks: desktopicon; Comment: "Edit Scanner-Watcher2 configuration"
 
@@ -78,16 +77,17 @@ Filename: "{cmd}"; Parameters: "/c if not exist ""{userappdata}\{#MyAppDataDir}"
 Filename: "{cmd}"; Parameters: "/c if not exist ""{userappdata}\{#MyAppDataDir}\logs"" mkdir ""{userappdata}\{#MyAppDataDir}\logs"""; Flags: runhidden
 Filename: "{cmd}"; Parameters: "/c if not exist ""{userappdata}\{#MyAppDataDir}\temp"" mkdir ""{userappdata}\{#MyAppDataDir}\temp"""; Flags: runhidden
 Filename: "{cmd}"; Parameters: "/c if not exist ""{userappdata}\{#MyAppDataDir}\config.json"" copy ""{app}\config_template.json"" ""{userappdata}\{#MyAppDataDir}\config.json"""; Flags: runhidden
-; Install the Windows service
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--install-service"; StatusMsg: "Installing Windows service..."; Flags: runhidden
-; Prompt to start service after installation
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--start-service"; Description: "Start the {#MyAppServiceDisplayName} now"; Flags: postinstall runhidden skipifsilent
+; Start the application now (optional)
+Filename: "{app}\{#MyAppExeName}"; Description: "Start {#MyAppName} now"; Flags: postinstall nowait skipifsilent
 
 [UninstallRun]
-; Stop the service before uninstalling
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--stop-service"; Flags: runhidden; RunOnceId: "StopService"
-; Remove the Windows service
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--remove-service"; Flags: runhidden; RunOnceId: "RemoveService"
+; Kill the running process
+Filename: "taskkill.exe"; Parameters: "/f /im {#MyAppExeName}"; Flags: runhidden; RunOnceId: "KillProcess"
+; Remove the scheduled task
+Filename: "schtasks.exe"; Parameters: "/delete /tn ""{#MyAppServiceName}"" /f"; Flags: runhidden; RunOnceId: "RemoveTask"
+; Also try to remove legacy Windows service if present
+Filename: "sc.exe"; Parameters: "stop {#MyAppServiceName}"; Flags: runhidden; RunOnceId: "StopLegacyService"
+Filename: "sc.exe"; Parameters: "delete {#MyAppServiceName}"; Flags: runhidden; RunOnceId: "RemoveLegacyService"
 
 [UninstallDelete]
 ; Clean up temporary files (but preserve logs and configuration)
@@ -214,6 +214,49 @@ begin
   Result := Result + #13#10 + '  ],';
 end;
 
+procedure RegisterAutoStartTask();
+var
+  ScriptContent: TStringList;
+  ScriptPath: String;
+  ExePath: String;
+  ResultCode: Integer;
+begin
+  ExePath := ExpandConstant('{app}\{#MyAppExeName}');
+  ScriptPath := ExpandConstant('{tmp}\register_task.ps1');
+
+  ScriptContent := TStringList.Create;
+  try
+    ScriptContent.Add('$exePath = "' + ExePath + '"');
+    ScriptContent.Add('$taskName = "{#MyAppServiceName}"');
+    ScriptContent.Add('');
+    ScriptContent.Add('$action = New-ScheduledTaskAction -Execute $exePath');
+    ScriptContent.Add('$trigger = New-ScheduledTaskTrigger -AtLogOn');
+    ScriptContent.Add('$settings = New-ScheduledTaskSettingsSet `');
+    ScriptContent.Add('    -ExecutionTimeLimit (New-TimeSpan -Days 0) `');
+    ScriptContent.Add('    -RestartCount 3 `');
+    ScriptContent.Add('    -RestartInterval (New-TimeSpan -Minutes 1) `');
+    ScriptContent.Add('    -AllowStartIfOnBatteries `');
+    ScriptContent.Add('    -DontStopIfGoingOnBatteries `');
+    ScriptContent.Add('    -MultipleInstances IgnoreNew');
+    ScriptContent.Add('');
+    ScriptContent.Add('Register-ScheduledTask `');
+    ScriptContent.Add('    -TaskName $taskName `');
+    ScriptContent.Add('    -Action $action `');
+    ScriptContent.Add('    -Trigger $trigger `');
+    ScriptContent.Add('    -Settings $settings `');
+    ScriptContent.Add('    -Description "{#MyAppServiceDisplayName}" `');
+    ScriptContent.Add('    -Force');
+    ScriptContent.SaveToFile(ScriptPath);
+  finally
+    ScriptContent.Free;
+  end;
+
+  Exec('powershell.exe',
+    '-ExecutionPolicy Bypass -File "' + ScriptPath + '"',
+    '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  DeleteFile(ScriptPath);
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   ConfigFile: String;
@@ -273,6 +316,9 @@ begin
         NewContent.Free;
       end;
     end;
+
+    { Register auto-start scheduled task }
+    RegisterAutoStartTask();
   end;
 end;
 
@@ -295,4 +341,4 @@ end;
 [Messages]
 WelcomeLabel2=This will install [name/ver] on your computer.%n%nScanner-Watcher2 is a Windows-native legal document processing system that automatically monitors directories for scanned documents, uses AI to classify them, and organizes files with meaningful names.%n%nYou will need an OpenAI API key to use this application.
 FinishedHeadingLabel=Completing the [name] Setup Wizard
-FinishedLabel=Scanner-Watcher2 has been installed on your computer.%n%nBefore starting the service:%n1. Ensure your watch directories exist%n2. Verify your OpenAI API key is correct%n3. Review the configuration at:%n   %APPDATA%\ScannerWatcher2\config.json%n%nYou can add more watch directories or file prefixes by editing the configuration file.%n%nThe service can be started from the Start Menu or Windows Services Manager.
+FinishedLabel=Scanner-Watcher2 has been installed on your computer and will start automatically when you log in.%n%nBefore first use:%n1. Ensure your watch directories exist%n2. Verify your OpenAI API key is correct%n3. Review the configuration at:%n   %APPDATA%\ScannerWatcher2\config.json%n%nYou can add more watch directories or file prefixes by editing the configuration file.%n%nThe application runs silently in the background. Use Task Manager to verify it is running.
